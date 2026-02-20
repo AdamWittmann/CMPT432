@@ -1,0 +1,9 @@
+labs/*.log
+labs/*.tex
+labs/*.aux
+
+c++Practice/*
+
+*.o
+
+tests/
