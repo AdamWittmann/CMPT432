@@ -1,5 +1,6 @@
 #include <iostream>
 #include "lexer.h"
+#include "token.h"
 #include <map>
 
 // Constructor
@@ -19,7 +20,7 @@ char Lexer::current(){
 // Peek ahead 1 character
 // For '==' '!=' ...
 char Lexer::peek(){
-    if (pos+1 < source.length()){
+    if (pos + 1 < (int)source.length()){
         return source[pos+1];
     }
     return '\0';
@@ -34,26 +35,28 @@ void Lexer::advance(){
     }
     else{
         col++;
-        pos++;
+        
     }
+    pos++;
+}
 
 // Did we finish scanning the entire file??
 // This makes sense instead of when reaching and EOP bc multiple programs, and error catching.
 bool Lexer::isEnd(){
-    return (pos >= source.length());
+    return (pos >= int(source.length()));
 }
 
 // Skip the white space bc the lexer doesnt gaf about it
 void Lexer::skipWhiteSpace(){
-    while(!isEnd() && current() == ' ' || current() ='\n' || current() =='\t' || current() == '\r'){
+    while(!isEnd() && (current() == ' ' || current() =='\n' || current() =='\t' || current() == '\r')){
         advance();
     }
 }
 // Consume entire (key)words
-std::string consumeWord(){
+std::string Lexer::consumeWord(){
 
     std::string word= "";
-    while(!isEnd() && current() >= "a" && current() <= "z"){
+    while(!isEnd() && current() >= 'a' && current() <= 'z'){
         word += current();
         advance();
     }
@@ -62,8 +65,8 @@ std::string consumeWord(){
 
 // Match keywords
 // Using a map instead of a lame ass if chain
-TokenType Lexer::matchkeyword(std::string word){
-    std::map<std::string TokenType> keywords {
+TokenType Lexer::matchKeyword(std::string word){
+    std::map<std::string, TokenType> keywords {
         {"print", PRINT},
         {"int", INT},
         {"while", WHILE},
@@ -79,13 +82,14 @@ TokenType Lexer::matchkeyword(std::string word){
     // If a 1 letter word return ID.
     if(word.length() == 1) return ID;
 
+    return ID;
     // ERROR HANDLING
 }
 
 // Main loop, aka the scanner
 // Purpose-- read in source (file) and produce tokens
 std::vector<Token> Lexer::lex(){
-
+    
     // empty vector to store tokens
     std::vector<Token> tokens;
 
@@ -101,6 +105,7 @@ std::vector<Token> Lexer::lex(){
 
         int tokenLine = line;
         int tokenCol = col;
+        char c = current();
 
         //Check for symbols, operators, literals, digits, letters, and unrecognized characters
         switch(c){
@@ -143,7 +148,7 @@ std::vector<Token> Lexer::lex(){
             case '=':
 
                 // HANDLE = or ==. USE PEEK MAYBE
-                if(peek() == "="){
+                if(peek() == '='){
 
                     tokens.push_back(Token(DOUBLE_EQUALS,"==", tokenLine, tokenCol));
                     
@@ -159,7 +164,7 @@ std::vector<Token> Lexer::lex(){
             case '!':
 
                 // HANDLE ! or !=
-                if(peek() == "="){
+                if(peek() == '='){
                     tokens.push_back(Token(NOT_EQUALS, "!=", tokenLine, tokenCol));
 
                     // Advance twice
@@ -180,7 +185,7 @@ std::vector<Token> Lexer::lex(){
                 // HANDLE STRING LITERALS 
                 // Return unterminated quote error if no closing quote
                 while(!isEnd() && current() != '"'){
-                    tokens.push_back(Token(CHAR,std::string(1, current()), line, col))
+                    tokens.push_back(Token(CHAR,std::string(1, current()), line, col));
                     advance();
                 }
 
@@ -198,13 +203,13 @@ std::vector<Token> Lexer::lex(){
                 case '/':
 
                     // Handle comments
-                    if(peek() == "*"){
+                    if(peek() == '*'){
                         advance();
                         advance();
                         
                         // Skip until found end comment
                         while(!isEnd()){
-                            if(current() == "*" && peek() == "/"){
+                            if(current() == '*' && peek() == '/'){
                                 advance();
                                 advance();
                                 break;
@@ -218,7 +223,7 @@ std::vector<Token> Lexer::lex(){
                         }
                     }else{
                         // Lone / is not valid return error
-                        
+
                     }
                     break;
 
@@ -227,7 +232,7 @@ std::vector<Token> Lexer::lex(){
 
                 // Digit
                 if(c >= '0' && c <= '9'){
-                    tokens.push_back(Token(DIGIT, c, tokenLine, tokenCol));
+                    tokens.push_back(Token(DIGIT, std::string(1, c), tokenLine, tokenCol));
                     advance();
                 }
                 // ID
@@ -244,6 +249,6 @@ std::vector<Token> Lexer::lex(){
                 }
                 break;
         }
-
     }
+    return tokens;
 }

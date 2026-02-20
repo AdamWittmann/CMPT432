@@ -1,6 +1,10 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <vector>
+#include "token.h"
+#include <string>
+
 class Lexer {
 
    public:
@@ -11,7 +15,7 @@ class Lexer {
         // destructor
       ~Lexer();
 
-      void lex();
+      std::vector<Token> lex();
 
    private:
 
