@@ -97,7 +97,153 @@ std::vector<Token> Lexer::lex(){
         // Check for end of file
         if(isEnd()) {
             break;
+        }
 
+        int tokenLine = line;
+        int tokenCol = col;
+
+        //Check for symbols, operators, literals, digits, letters, and unrecognized characters
+        switch(c){
+            case '{':
+
+                tokens.push_back(Token(LEFT_BRACE,"{", tokenLine, tokenCol));
+                advance();
+                break;
+
+            case '}':
+
+                tokens.push_back(Token(RIGHT_BRACE, "}", tokenLine, tokenCol));
+                advance();
+                break;
+
+            case '(':
+
+                tokens.push_back(Token(LEFT_PAREN, "(", tokenLine, tokenCol));
+                advance();
+                break;
+
+            case ')':
+
+                tokens.push_back(Token(RIGHT_PAREN,")", tokenLine, tokenCol));
+                advance();
+                break;
+
+            case '+':
+
+                tokens.push_back(Token(PLUS,"+", tokenLine, tokenCol));
+                advance();
+                break;
+
+            case '$':
+
+                tokens.push_back(Token(EOP,"$", tokenLine, tokenCol));
+                advance();
+                break;
+
+            case '=':
+
+                // HANDLE = or ==. USE PEEK MAYBE
+                if(peek() == "="){
+
+                    tokens.push_back(Token(DOUBLE_EQUALS,"==", tokenLine, tokenCol));
+                    
+                    // Advance twice
+                    advance(); // skips the first =
+                    advance(); // skips the second =
+                }else {
+                    tokens.push_back(Token(ASSIGN,"=", tokenLine, tokenCol));
+                    advance();
+                }
+                break;
+
+            case '!':
+
+                // HANDLE ! or !=
+                if(peek() == "="){
+                    tokens.push_back(Token(NOT_EQUALS, "!=", tokenLine, tokenCol));
+
+                    // Advance twice
+                    advance(); // skips the =
+                    advance(); // skips the !
+                }else {
+                    // Error lone ! is not valid in this grammer
+
+                }
+                break;
+
+            case '"':
+
+                // Push starting quote
+                tokens.push_back(Token(QUOTE, "\"", tokenLine, tokenCol));
+                advance();
+
+                // HANDLE STRING LITERALS 
+                // Return unterminated quote error if no closing quote
+                while(!isEnd() && current() != '"'){
+                    tokens.push_back(Token(CHAR,std::string(1, current()), line, col))
+                    advance();
+                }
+
+                // We reach the closing quote
+                if(!isEnd()){
+                    tokens.push_back(Token(QUOTE, "\"", tokenLine, tokenCol));
+                    advance();
+                }else{
+
+                    // Error: Unterminated string literal
+
+                }
+                break;
+
+                case '/':
+
+                    // Handle comments
+                    if(peek() == "*"){
+                        advance();
+                        advance();
+                        
+                        // Skip until found end comment
+                        while(!isEnd()){
+                            if(current() == "*" && peek() == "/"){
+                                advance();
+                                advance();
+                                break;
+                            }
+                            advance();
+                        }
+                        // If reaches end of the file before finding terminating comment symbol
+                        if(isEnd()){
+                            // Return error for unterminated comment
+
+                        }
+                    }else{
+                        // Lone / is not valid return error
+                        
+                    }
+                    break;
+
+            // Handle digits, ids, and errors
+            default:
+
+                // Digit
+                if(c >= '0' && c <= '9'){
+                    tokens.push_back(Token(DIGIT, c, tokenLine, tokenCol));
+                    advance();
+                }
+                // ID
+                else if(c >= 'a' && c <= 'z'){
+                    std::string word = consumeWord();
+                    TokenType type = matchKeyword(word);
+                    tokens.push_back(Token(type, word, tokenLine, tokenCol));
+                    // No advance bc consume word did that already
+                }
+                // Error
+                else{
+
+                    advance();
+                }
+                break;
+        }
 
     }
 }
