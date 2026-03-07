@@ -53,43 +53,44 @@ void Lexer::skipWhiteSpace(){
     }
 }
 // Consume entire (key)words
-std::string Lexer::consumeWord(){
+// std::string Lexer::consumeWord(){
 
-    std::string word= "";
-    while(!isEnd() && current() >= 'a' && current() <= 'z'){
-        word += current();
-        advance();
-    }
-    return word;
-}
+//     std::string word= "";
+//     while(!isEnd() && current() >= 'a' && current() <= 'z'){
+//         word += current();
+//         advance();
+//     }
+//     return word;
+// }
 
-// Match keywords
-// Using a map instead of a lame ass if chain
-TokenType Lexer::matchKeyword(std::string word){
-    std::map<std::string, TokenType> keywords {
-        {"print", PRINT},
-        {"int", INT},
-        {"while", WHILE},
-        {"if", IF},
-        {"string", STRING},
-        {"boolean", BOOLEAN},
-        {"true", BOOL},
-        {"false", BOOL}
-    };
+// // Match keywords
+// // Using a map instead of a lame ass if chain
+// TokenType Lexer::matchKeyword(std::string word){
+//     std::map<std::string, TokenType> keywords {
+//         {"print", PRINT},
+//         {"int", INT},
+//         {"while", WHILE},
+//         {"if", IF},
+//         {"string", STRING},
+//         {"boolean", BOOLEAN},
+//         {"true", BOOL},
+//         {"false", BOOL}
+//     };
     
-    //if its a keyword return the keyword type
-    if(keywords.count(word)) return keywords[word];
-    // If a 1 letter word return ID.
-    if(word.length() == 1) return ID;
+//     //if its a keyword return the keyword type
+//     if(keywords.count(word)) return keywords[word];
+//     // If a 1 letter word return ID.
+//     if(word.length() == 1) return ID;
 
-    return ID;
-    // ERROR HANDLING
-}
+//     return ID;
+//     // ERROR HANDLING
+// }
 
 // Main loop, aka the scanner
 // Purpose-- read in source (file) and produce tokens
-LexResult Lexer::lex(){
-    
+std::vector<LexResult> Lexer::lex(){
+    // empty vector to store results 
+    std::vector<LexResult> results;
     // empty vector to store tokens
     std::vector<Token> tokens;
     
@@ -142,8 +143,10 @@ LexResult Lexer::lex(){
                 break;
 
             case '$':
-
                 tokens.push_back(Token(EOP,"$", tokenLine, tokenCol));
+                results.push_back({tokens, errors});
+                tokens.clear();
+                errors.clear();
                 advance();
                 break;
 
@@ -175,6 +178,7 @@ LexResult Lexer::lex(){
                 }else {
                     // Error lone ! is not valid in this grammer
                     errors.push_back("Error: '!' is not valid at (" + std::to_string(line) + "," + std::to_string(col) + ")"+ ".\nDid you mean '!='?");
+                    advance();
                 }
                 break;
 
@@ -239,18 +243,35 @@ LexResult Lexer::lex(){
                 }
                 // ID
                 else if(c >= 'a' && c <= 'z'){
-                    std::string word = consumeWord();
-                    TokenType type = matchKeyword(word);
-                    tokens.push_back(Token(type, word, tokenLine, tokenCol));
-                    // No advance bc consume word did that already
-                }
-                // Error
-                else{
-                    errors.push_back("Error: Unrecognized character at (" + std::to_string(line) + "," + std::to_string(col) + ")");
-                    advance();
+                    std::map<std::string, TokenType> keywords {
+                        {"print", PRINT},
+                        {"int", INT},
+                        {"while", WHILE},
+                        {"if", IF},
+                        {"string", STRING},
+                        {"boolean", BOOLEAN},
+                        {"true", BOOL},
+                        {"false", BOOL}
+                    };
+
+                    bool matched = false;
+                    for(auto& [kw, type] : keywords){
+                        // Check if keyword fits at current position
+                        if(source.substr(pos, kw.length()) == kw){
+                            for(int i = 0; i < (int)kw.length(); i++) advance();
+                            tokens.push_back(Token(type, kw, tokenLine, tokenCol));
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if(!matched){
+                        // Single char ID
+                        tokens.push_back(Token(ID, std::string(1, c), tokenLine, tokenCol));
+                        advance();
+                    }
                 }
                 break;
         }
     }
-    return {tokens, errors};
+    return results;
 }
