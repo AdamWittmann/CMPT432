@@ -88,11 +88,13 @@ TokenType Lexer::matchKeyword(std::string word){
 
 // Main loop, aka the scanner
 // Purpose-- read in source (file) and produce tokens
-std::vector<Token> Lexer::lex(){
+LexResult Lexer::lex(){
     
     // empty vector to store tokens
     std::vector<Token> tokens;
-
+    
+    // empty vector to store error messages
+    std::vector<std::string> errors;
     // While not at the end of file.
     while(!isEnd()){
         // Skip whitespace
@@ -172,7 +174,7 @@ std::vector<Token> Lexer::lex(){
                     advance(); // skips the !
                 }else {
                     // Error lone ! is not valid in this grammer
-
+                    errors.push_back("Error: '!' is not valid at (" + std::to_string(line) + "," + std::to_string(col) + ")"+ ".\nDid you mean '!='?");
                 }
                 break;
 
@@ -196,7 +198,7 @@ std::vector<Token> Lexer::lex(){
                 }else{
 
                     // Error: Unterminated string literal
-
+                    errors.push_back("Error: Unterminated string literal at (" + std::to_string(line) + "," + std::to_string(col) + ")" + "\nAre you forgetting a quote?");
                 }
                 break;
 
@@ -219,11 +221,11 @@ std::vector<Token> Lexer::lex(){
                         // If reaches end of the file before finding terminating comment symbol
                         if(isEnd()){
                             // Return error for unterminated comment
-
+                            errors.push_back("Error: Unterminated comment at line:(" + std::to_string(line) + "," + std::to_string(col) + ")" +"\nAre you forgetting a '*/'?");
                         }
                     }else{
                         // Lone / is not valid return error
-
+                        errors.push_back("Error: Unrecognized character at (" + std::to_string(line) + "," + std::to_string(col) + ")" + "Did you mean to make a comment?");
                     }
                     break;
 
@@ -244,11 +246,11 @@ std::vector<Token> Lexer::lex(){
                 }
                 // Error
                 else{
-
+                    errors.push_back("Error: Unrecognized character at (" + std::to_string(line) + "," + std::to_string(col) + ")");
                     advance();
                 }
                 break;
         }
     }
-    return tokens;
+    return {tokens, errors};
 }
