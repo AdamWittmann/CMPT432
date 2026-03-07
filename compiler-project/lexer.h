@@ -20,7 +20,7 @@ class Lexer {
         // destructor
       ~Lexer();
 
-      LexResult lex();
+      std::vector<LexResult> lex();
 
       
    private:
@@ -39,8 +39,8 @@ class Lexer {
 
    void skipWhiteSpace();
 
-   std::string consumeWord();
-   TokenType matchKeyword(std::string word);
+  //  std::string consumeWord();
+  //  TokenType matchKeyword(std::string word);
    
 
 };
