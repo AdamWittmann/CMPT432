@@ -5,6 +5,11 @@
 #include "token.h"
 #include <string>
 
+// Struct to access tokens and errors from main
+struct LexResult {
+    std::vector<Token> tokens;
+    std::vector<std::string> errors;
+};
 class Lexer {
 
    public:
@@ -15,8 +20,9 @@ class Lexer {
         // destructor
       ~Lexer();
 
-      std::vector<Token> lex();
+      LexResult lex();
 
+      
    private:
 
    // To keep track of state

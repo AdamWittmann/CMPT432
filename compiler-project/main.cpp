@@ -29,12 +29,20 @@ int main(int argc, char* argv[]){
 
     // Pass to lexer
     Lexer lexer(source);
-    std::vector<Token> tokens = lexer.lex();
+    LexResult result = lexer.lex();
 
+    // Print Errors
+    for(const std::string& err : result.errors){
+        std::cerr << err << std::endl;
+    }
     // Print tokens
-    for(const Token& token : tokens){
+    for(const Token& token : result.tokens){
         token.print();
     }
+    if(!result.errors.empty()){
+    return 1;
+    }
+      
     return 0;
 
 }
