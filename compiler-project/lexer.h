@@ -39,10 +39,6 @@ class Lexer {
 
    void skipWhiteSpace();
 
-  //  std::string consumeWord();
-  //  TokenType matchKeyword(std::string word);
-   
-
 };
 
 #endif // LEXER_H

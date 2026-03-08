@@ -14,6 +14,8 @@ Lexer::~Lexer() = default;
 
 // Returns Current Character
 char Lexer::current(){
+    // Null check for edge cases
+    if(isEnd()) return '\0';
     return source[pos];
 }
 
@@ -52,42 +54,10 @@ void Lexer::skipWhiteSpace(){
         advance();
     }
 }
-// Consume entire (key)words
-// std::string Lexer::consumeWord(){
 
-//     std::string word= "";
-//     while(!isEnd() && current() >= 'a' && current() <= 'z'){
-//         word += current();
-//         advance();
-//     }
-//     return word;
-// }
-
-// // Match keywords
-// // Using a map instead of a lame ass if chain
-// TokenType Lexer::matchKeyword(std::string word){
-//     std::map<std::string, TokenType> keywords {
-//         {"print", PRINT},
-//         {"int", INT},
-//         {"while", WHILE},
-//         {"if", IF},
-//         {"string", STRING},
-//         {"boolean", BOOLEAN},
-//         {"true", BOOL},
-//         {"false", BOOL}
-//     };
-    
-//     //if its a keyword return the keyword type
-//     if(keywords.count(word)) return keywords[word];
-//     // If a 1 letter word return ID.
-//     if(word.length() == 1) return ID;
-
-//     return ID;
-//     // ERROR HANDLING
-// }
 
 // Main loop, aka the scanner
-// Purpose-- read in source (file) and produce tokens
+// Purpose-- read in source (program) and produce tokens
 std::vector<LexResult> Lexer::lex(){
     // empty vector to store results 
     std::vector<LexResult> results;
@@ -98,6 +68,7 @@ std::vector<LexResult> Lexer::lex(){
     std::vector<std::string> errors;
     // While not at the end of file.
     while(!isEnd()){
+        
         // Skip whitespace
         skipWhiteSpace();
 
@@ -105,6 +76,7 @@ std::vector<LexResult> Lexer::lex(){
         if(isEnd()) {
             break;
         }
+        std::cerr << "DEBUG pos=" << pos << " char='" << current() << "'" << std::endl;
 
         int tokenLine = line;
         int tokenCol = col;
@@ -217,10 +189,9 @@ std::vector<LexResult> Lexer::lex(){
                         while(!isEnd()){
                             if(current() == '*' && peek() == '/'){
                                 advance();
-                                advance();
+                                if(!isEnd()) advance();
                                 break;
                             }
-                            advance();
                         }
                         // If reaches end of the file before finding terminating comment symbol
                         if(isEnd()){
@@ -230,6 +201,7 @@ std::vector<LexResult> Lexer::lex(){
                     }else{
                         // Lone / is not valid return error
                         errors.push_back("Error: Unrecognized character at (" + std::to_string(line) + "," + std::to_string(col) + ")" + "Did you mean to make a comment?");
+                        advance();
                     }
                     break;
 
@@ -243,15 +215,15 @@ std::vector<LexResult> Lexer::lex(){
                 }
                 // ID
                 else if(c >= 'a' && c <= 'z'){
-                    std::map<std::string, TokenType> keywords {
-                        {"print", PRINT},
-                        {"int", INT},
-                        {"while", WHILE},
-                        {"if", IF},
-                        {"string", STRING},
+                    std::vector<std::pair<std::string, TokenType>> keywords {
                         {"boolean", BOOLEAN},
+                        {"string", STRING},
+                        {"print", PRINT},
+                        {"while", WHILE},
+                        {"false", BOOL},
                         {"true", BOOL},
-                        {"false", BOOL}
+                        {"int", INT},
+                        {"if", IF}
                     };
 
                     bool matched = false;
@@ -270,6 +242,11 @@ std::vector<LexResult> Lexer::lex(){
                         advance();
                     }
                 }
+                else{
+                    errors.push_back("Error: Unrecognized character '" + std::string(1, c) + "' at (" + std::to_string(tokenLine) + "," + std::to_string(tokenCol) + ")");
+                    advance();
+                }
+
                 break;
         }
     }
