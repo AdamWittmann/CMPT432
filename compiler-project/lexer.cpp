@@ -168,7 +168,7 @@ std::vector<LexResult> Lexer::lex(){
                 }
 
                 // We reach the closing quote
-                if(!isEnd()){
+                  if(!isEnd()){
                     tokens.push_back(Token(QUOTE, "\"", tokenLine, tokenCol));
                     advance();
                 }else{
