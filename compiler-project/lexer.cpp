@@ -214,6 +214,13 @@ std::vector<LexResult> Lexer::lex(){
                 if(c >= '0' && c <= '9'){
                     tokens.push_back(Token(DIGIT, std::string(1, c), tokenLine, tokenCol));
                     advance();
+                    // Warning if next char is also a digit:
+                     if(!isEnd() && current() >= '0' && current() <= '9'){
+                        errors.push_back("WARNING: multi-digit integer starting at (" + 
+                                        std::to_string(tokenLine) + "," + 
+                                        std::to_string(tokenCol) + 
+                                        "). Only single digits are supported.");
+                    }
                 }
                 // ID
                 else if(c >= 'a' && c <= 'z'){
