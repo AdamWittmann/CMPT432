@@ -191,6 +191,8 @@ std::vector<LexResult> Lexer::lex(){
                                 advance();
                                 if(!isEnd()) advance();
                                 break;
+                            } else{
+                                advance();
                             }
                         }
                         // If reaches end of the file before finding terminating comment symbol
