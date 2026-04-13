@@ -10,7 +10,7 @@ struct Symbol{
     std::string type;
     int scope;
     bool isInit;
-    bool isUsed
+    bool isUsed;
 };
 
 class SymbolTable{
@@ -25,7 +25,7 @@ class SymbolTable{
         void exitScope();
 
         // Symbol Management
-        bool declare(std::string name, std::string type);
+        bool declared(std::string name, std::string type);
         Symbol* lookup(std::string name);
         bool markInitialized(std::string name);
         bool markUsed(std::string name);
