@@ -76,7 +76,7 @@ std::vector<LexResult> Lexer::lex(){
         if(isEnd()) {
             break;
         }
-        std::cerr << "DEBUG pos=" << pos << " char='" << current() << "'" << std::endl;
+        // std::cerr << "DEBUG pos=" << pos << " char='" << current() << "'" << std::endl;
 
         int tokenLine = line;
         int tokenCol = col;
