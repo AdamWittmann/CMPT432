@@ -252,5 +252,9 @@ std::vector<LexResult> Lexer::lex(){
                 break;
         }
     }
+    if(!tokens.empty() || !errors.empty()){
+        results.push_back({tokens, errors});
+    }
+
     return results;
 }

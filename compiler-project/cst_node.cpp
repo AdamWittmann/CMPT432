@@ -11,7 +11,7 @@ CSTNode::CSTNode(std::string label, Token* token):
     label(label), token(token), isLeaf(true) {}
 
 // Kill off the children
-CSTNode::DesCSTNode(){
+CSTNode::~CSTNode(){
     for(CSTNode* child : children){
         delete child;
     }
@@ -33,7 +33,7 @@ void CSTNode::print(int depth) const {
         std::cout << label << std::endl;
     }
     
-    for(int j = 0; j<children.size(); j++){
+    for(int j = 0; j<(int)children.size(); j++){
         children[j]->print(depth+1);
     }
 }
