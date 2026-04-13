@@ -61,9 +61,14 @@ int main(int argc, char* argv[]){
                 }
                 std::cout << "Parser completed program " << programNum 
                         << " with " << parser.errors.size() << " errors." << std::endl;
+                delete cst;
+                return 1;
             }
             delete cst;
-        }
+        } else {
+        // lexer had errors
+        return 1; // signal failure
+    }
     
         programNum++;
     }

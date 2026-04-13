@@ -253,6 +253,10 @@ std::vector<LexResult> Lexer::lex(){
         }
     }
     if(!tokens.empty() || !errors.empty()){
+        // check if last token is not EOP
+        if(tokens.empty() || tokens.back().type != EOP){
+            errors.push_back("WARNING: missing EOP '$' at end of program");
+        }
         results.push_back({tokens, errors});
     }
 
