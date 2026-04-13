@@ -2,7 +2,8 @@
 #include <fstream>
 #include "lexer.h"
 #include "token.h"
-
+#include "parser.h"
+#include "cst_node.h"
 int main(int argc, char* argv[]){
 
     // Check if there is a file
@@ -45,6 +46,25 @@ int main(int argc, char* argv[]){
         std::cout << "Lexer completed program " << programNum 
                 << " with " << result.errors.size() << " errors." << std::endl;
         
+        // If lexer returned 0 errors move onto parser
+        if(result.errors.empty()){
+            std::cout << "\nParsing program " << programNum << std::endl;
+            Parser parser(result.tokens);
+            CSTNode* cst = parser.parse();
+            
+            if(parser.errors.empty()){
+                std::cout << "Parse successful, CST:" << std::endl;
+                cst->print();
+            } else {
+                for(const std::string& err : parser.errors){
+                    std::cerr << err << std::endl;
+                }
+                std::cout << "Parser completed program " << programNum 
+                        << " with " << parser.errors.size() << " errors." << std::endl;
+            }
+            delete cst;
+        }
+    
         programNum++;
     }
     return 0;

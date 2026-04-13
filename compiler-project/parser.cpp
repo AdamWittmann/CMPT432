@@ -1,19 +1,25 @@
-#include <iostream>
 #include "parser.h"
+#include <iostream>
 
+
+// initialize the vector just set it to 0
 Parser::Parser(std::vector<Token> tokens):
     tokens(tokens), current(0) {}
 
+// Destructor
 Parser::~Parser() {}
 
+// check if at the end
 bool Parser::isAtEnd(){
     return currentToken().type == EOP;
 }
 
+// returns current token
 Token Parser::currentToken(){
     return tokens[current];
 }
 
+// lookahead #LL(1) grammar
 Token Parser::peek(){
     if(!isAtEnd()){
         return tokens[current + 1];
@@ -36,7 +42,11 @@ CSTNode* Parser::match(TokenType expected){
         return new CSTNode(t.typeToString(), &tokens[current - 1]);
     } else {
         // push error with line/col info
-        errors.push_back("Error: at (" + std::to_string(currentToken().line) + "," + std::to_string(currentToken().column) + ")");        // return nullptr
+        Token temp(expected, "", 0, 0);
+        errors.push_back("Error: expected " + temp.typeToString() + 
+                 " but found '" + currentToken().value + "'" +
+                 " at (" + std::to_string(currentToken().line) + 
+                 "," + std::to_string(currentToken().column) + ")");
         return nullptr;
     }
 }
@@ -94,7 +104,10 @@ CSTNode* Parser::parseStatement(){
         node->addChild(parseBlock());
     }
     else{
-        errors.push_back("Error: at (" + std::to_string(currentToken().line) + "," + std::to_string(currentToken().column) + ")");   
+        errors.push_back("Error: unexpected token '" + currentToken().value + 
+                 "' at (" + std::to_string(currentToken().line) + 
+                 "," + std::to_string(currentToken().column) + 
+                 "). Expected a statement.");
     }
         return node;
 
@@ -155,6 +168,11 @@ CSTNode* Parser::parseExpr(){
     }
     else if(check(ID)){
     node->addChild(parseId());
+    }else {
+    errors.push_back("Error: expected an expression but found '" + 
+                     currentToken().value + "'" +
+                     " at (" + std::to_string(currentToken().line) + 
+                     "," + std::to_string(currentToken().column) + ")");
     }
     return node;
 }
@@ -186,9 +204,14 @@ CSTNode* Parser::parseBooleanExpr(){
         node->addChild(match(LEFT_PAREN));
         node->addChild(parseExpr());
         if(check(DOUBLE_EQUALS)){
-        node->addChild(match(DOUBLE_EQUALS));
-        } else {
+            node->addChild(match(DOUBLE_EQUALS));
+        } else if(check(NOT_EQUALS)){
             node->addChild(match(NOT_EQUALS));
+        } else {
+            errors.push_back("Error: expected '==' or '!=' but found '" + 
+                            currentToken().value + "'" +
+                            " at (" + std::to_string(currentToken().line) + 
+                            "," + std::to_string(currentToken().column) + ")");
         }
         node->addChild(parseExpr());
         node->addChild(match(RIGHT_PAREN));
