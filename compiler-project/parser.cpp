@@ -73,12 +73,16 @@ CSTNode* Parser::parseBlock(){
 
 CSTNode* Parser::parseStatementList(){
     CSTNode* node = new CSTNode("StatementList");
-    //Check for epsilon prod before trying to continue
-    if(check(RIGHT_BRACE)){
+    if(check(RIGHT_BRACE) || isAtEnd()){
         node->addChild(new CSTNode("Epsilon"));
-    }else {
+    } else {
         node->addChild(parseStatement());
-        node->addChild(parseStatementList());
+        // only recurse if statement consumed tokens and we're not at end
+        if(!isAtEnd() && !check(RIGHT_BRACE)){
+            node->addChild(parseStatementList());
+        } else {
+            node->addChild(new CSTNode("Epsilon"));
+        }
     }
     return node;
 }
@@ -108,6 +112,7 @@ CSTNode* Parser::parseStatement(){
                  "' at (" + std::to_string(currentToken().line) + 
                  "," + std::to_string(currentToken().column) + 
                  "). Expected a statement.");
+        current++;
     }
         return node;
 
