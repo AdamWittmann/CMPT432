@@ -4,6 +4,7 @@
 #include "token.h"
 #include "parser.h"
 #include "cst_node.h"
+#include "semantic_analyzer.h"
 int main(int argc, char* argv[]){
 
     // Check if there is a file
@@ -53,8 +54,28 @@ int main(int argc, char* argv[]){
             CSTNode* cst = parser.parse();
             
             if(parser.errors.empty()){
-                std::cout << "Parse successful, CST:" << std::endl;
-                cst->print();
+                std::cout << "Parse successful" << std::endl;
+                
+                // Semantic analysis
+                SemanticAnalyzer analyzer(cst);
+                CSTNode* ast = analyzer.analyze();
+                
+                for(const std::string& err : analyzer.errors){
+                    std::cerr << err << std::endl;
+                }
+                for(const std::string& warn : analyzer.warnings){
+                    std::cout << warn << std::endl;
+                }
+                
+                if(analyzer.errors.empty()){
+                    std::cout << "Semantic analysis passed with " << analyzer.warnings.size() << " warnings." << std::endl;
+                } else {
+                    std::cout << "Semantic analysis failed with " << analyzer.errors.size() << " errors." << std::endl;
+                    delete ast;
+                    delete cst;
+                    return 1;
+                }
+                delete ast;
             } else {
                 for(const std::string& err : parser.errors){
                     std::cerr << err << std::endl;
@@ -66,10 +87,8 @@ int main(int argc, char* argv[]){
             }
             delete cst;
         } else {
-        // lexer had errors
-        return 1; // signal failure
-    }
-    
+            return 1;
+        }
         programNum++;
     }
     return 0;
