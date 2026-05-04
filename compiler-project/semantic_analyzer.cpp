@@ -187,16 +187,16 @@ std::string collectCharList(CSTNode* node){
 }
 
 void flattenStatementList(CSTNode* statementList, CSTNode* astBlock){
-    if(node == nullptr) return;
-    if(node->label == "Epsilon") return;
+    if(statementList == nullptr) return;
+    if(statementList->label == "Epsilon") return;
 
-    for(CSTNode* child : node->children){
+    for(CSTNode* child : statementList->children){
         if(child->label == "Epsilon") continue;
         if(child->label == "StatementList"){
             flattenStatementList(child, astBlock);
         }else if (child->label == "Statement"){
                 CSTNode* result = visit(child->children[0]);
-                if(result != nullptr) astBlock->addCHild(result);
+                if(result != nullptr) astBlock->addChild(result);
         }
     }
 }
