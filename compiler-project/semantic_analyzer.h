@@ -26,6 +26,8 @@ class SemanticAnalyzer {
 
             CSTNode* visit(CSTNode* node);
             std::string resolveType(CSTNode* node);
+            std::string collectCharList(CSTNode* node);
+            void flattenStatementList(CSTNode* statementList, CSTNode* astBlock);
 
 };
 
