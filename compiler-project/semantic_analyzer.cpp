@@ -1,5 +1,5 @@
 #include "semantic_analyzer.h"
-
+#include <iostream>
 // Constructor
 SemanticAnalyzer::SemanticAnalyzer(CSTNode* cst):
     cst(cst) {}
@@ -15,6 +15,7 @@ CSTNode* SemanticAnalyzer:: analyze() {
 // Visit
 // This builds ast nodes if the child isnt null
 CSTNode* SemanticAnalyzer::visit(CSTNode* node){
+    std::cerr << "DEBUG visit: " << node->label << std::endl;
     if(node == nullptr) return nullptr;
 
     std::string label = node->label;
@@ -33,8 +34,12 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
         symbolTable.errors.clear();
         symbolTable.warnings.clear();
         return astNode;
-
     }
+
+    if(label == "Program"){
+        return visit(node->children[0]);
+    }
+
     if(label == "VarDecl"){
         // get type from first child's token value
         std::string type = node->children[0]->token->value;
@@ -91,9 +96,11 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
 
     if(label == "IntExpr"){
         CSTNode* astNode = new CSTNode("IntExpr");
-        astNode->addChild(node->children[0]); // digit leaf
+        CSTNode* leaf = node ->children[0];
+        astNode->addChild(new CSTNode(leaf->label, leaf->token)); // digit leaf
         if(node->children.size() == 3){
-            astNode->addChild(node->children[1]); // + leaf
+            CSTNode* leaf = node ->children[1];
+            astNode->addChild(new CSTNode(leaf->label, leaf->token));; // + leaf
             astNode->addChild(visit(node->children[2])); // recurse on Expr
         }
         return astNode;
@@ -110,16 +117,18 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
         CSTNode* astNode = new CSTNode("BooleanExpr");
         if(node->children.size() == 5){
             astNode->addChild(visit(node->children[1]));
-            astNode->addChild(node->children[2]);
+            CSTNode* leaf = node ->children[2];
+            astNode->addChild(new CSTNode(leaf->label, leaf->token));;
             astNode->addChild(visit(node->children[3]));
         }
         else if(node->children.size() == 1){
-            astNode->addChild(node->children[0]);
+            CSTNode* leaf = node ->children[0];
+            astNode->addChild(new CSTNode(leaf->label, leaf->token));;
         }
         return astNode;
     }
 
-    if(label == "Id"){
+    if(label == "ID"){
         std::string name = node->children[0]->token->value;
         Symbol* sym = symbolTable.lookup(name);
         // if not pointing to definition return undeclared
@@ -134,7 +143,7 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
             // mark used if used
             symbolTable.markUsed(name);
         }
-        CSTNode* astNode = new CSTNode("Id");
+        CSTNode* astNode = new CSTNode("ID");
         astNode->addChild(new CSTNode(name));
         return astNode;
 
@@ -165,7 +174,7 @@ std::string SemanticAnalyzer::resolveType(CSTNode* node){
     if(label == "StringExpr") return "string";
     if(label == "BooleanExpr") return "boolean";
     if(label == "Expr") return resolveType(node->children[0]);
-    if(label == "Id"){
+    if(label == "ID"){
         std::string name = node->children[0]->token->value;
         Symbol* sym = symbolTable.lookup(name);
         if(sym == nullptr) return "unknown";
@@ -174,7 +183,7 @@ std::string SemanticAnalyzer::resolveType(CSTNode* node){
     return "unknown";
 }
 
-std::string collectCharList(CSTNode* node){
+std::string SemanticAnalyzer::collectCharList(CSTNode* node){
     if(node == nullptr) return "";
     if(node->label == "Epsilon") return "";
     if(node->label == "CharList"){
@@ -186,7 +195,7 @@ std::string collectCharList(CSTNode* node){
     return "";
 }
 
-void flattenStatementList(CSTNode* statementList, CSTNode* astBlock){
+void SemanticAnalyzer::flattenStatementList(CSTNode* statementList, CSTNode* astBlock){
     if(statementList == nullptr) return;
     if(statementList->label == "Epsilon") return;
 
