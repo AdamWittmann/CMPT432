@@ -1,5 +1,6 @@
 #include "symbol_table.h"
-
+#include <iomanip>
+#include <iostream>
 SymbolTable::SymbolTable():
     currentScope(0) {}
 
@@ -28,7 +29,7 @@ void SymbolTable::exitScope(){
     currentScope--;
 }
 
-bool SymbolTable::declared(std::string name, std::string type){
+bool SymbolTable::declared(std::string name, std::string type, int line, int column){
     // does name already exist in current scope (redeclaration error)
     if(scopeStack.back().count(name)){
         errors.push_back("Error: redeclaration of variable '" + name + "' at scope " + std::to_string(currentScope));
@@ -38,10 +39,13 @@ bool SymbolTable::declared(std::string name, std::string type){
     Symbol s;
     s.name = name;
     s.type = type;
+    s.line = line;
+    s.column = column;
     s.scope = currentScope;
     s.isInit = false;
     s.isUsed = false;
     scopeStack.back()[name] = s;
+    allSymbols.push_back(s);
     return true;
 }
 Symbol* SymbolTable::lookup(std::string name){
@@ -78,4 +82,26 @@ bool SymbolTable::markUsed(std::string name){
     return true;
 }
 
+void SymbolTable::printSymbolTable(){
+    // I used claude to do this
+    std::cout << std::left
+              << std::setw(10) << "Name"
+              << std::setw(10) << "Type"
+              << std::setw(8)  << "Scope"
+              << std::setw(6)  << "Line"
+              << std::setw(6)  << "Col"
+              << std::endl;
+    std::cout << std::string(40, '-') << std::endl;
+
+    for(const auto& symbol : allSymbols){
+        std::cout << std::left
+                << std::setw(10) << symbol.name
+                << std::setw(10) << symbol.type
+                << std::setw(8)  << symbol.scope
+                << std::setw(6)  << symbol.line
+                << std::setw(6)  << symbol.column
+        << std::endl;
+    }
+
+}
 

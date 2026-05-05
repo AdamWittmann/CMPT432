@@ -11,6 +11,8 @@ struct Symbol{
     int scope;
     bool isInit;
     bool isUsed;
+    int line;
+    int column;
 };
 
 class SymbolTable{
@@ -25,15 +27,19 @@ class SymbolTable{
         void exitScope();
 
         // Symbol Management
-        bool declared(std::string name, std::string type);
+        bool declared(std::string name, std::string type, int line, int column);
         Symbol* lookup(std::string name);
         bool markInitialized(std::string name);
         bool markUsed(std::string name);
+        // Duplicate Symbols for the print out
+        std::vector<Symbol> allSymbols;
 
         // Error and warning messages
         std::vector<std::string> errors;
         std::vector<std::string> warnings;
 
+        //Verbose print of symbol table
+        void printSymbolTable();
     private:
         std::vector<std::map<std::string, Symbol>> scopeStack;
         int currentScope;

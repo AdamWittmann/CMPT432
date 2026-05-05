@@ -12,6 +12,10 @@ Lexer::Lexer(std::string source)
 
 Lexer::~Lexer() = default;
 
+// Verbose Debugging output
+void Lexer::setVerbose(bool verbose){
+    this->verbose = verbose;
+}
 // Returns Current Character
 char Lexer::current(){
     // Null check for edge cases
@@ -76,7 +80,9 @@ std::vector<LexResult> Lexer::lex(){
         if(isEnd()) {
             break;
         }
-        std::cerr << "DEBUG pos=" << pos << " char='" << current() << "'" << std::endl;
+        if(verbose){
+            std::cerr << "DEBUG pos=" << pos << " char='" << current() << "'" << std::endl;
+        }
 
         int tokenLine = line;
         int tokenCol = col;

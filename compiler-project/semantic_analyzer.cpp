@@ -41,13 +41,16 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
     }
 
     if(label == "VarDecl"){
-        // get type from first child's token value
+        // get type from type keyword token
         std::string type = node->children[0]->token->value;
-        // get name from second child's first child's token value
+        // get ID token from the Id node's leaf
         std::string name = node->children[1]->children[0]->token->value;
+        // get line&column position from that node
+        int line = node->children[1]->children[0]->token->line;
+        int column = node->children[1]->children[0]->token->column;
 
         // declare in symbol table
-        symbolTable.declared(name,type);
+        symbolTable.declared(name,type,line,column);
 
         // build node
         CSTNode* astNode = new CSTNode("VarDecl");
@@ -143,6 +146,7 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
             // mark used if used
             symbolTable.markUsed(name);
         }
+        std::cerr << "DEBUG ID visitor: name=" << node->children[0]->token->value << std::endl;
         CSTNode* astNode = new CSTNode("ID");
         astNode->addChild(new CSTNode(name));
         return astNode;

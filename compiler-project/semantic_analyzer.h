@@ -5,6 +5,7 @@
 #include "symbol_table.h"
 #include <vector>
 #include <string>
+#include <iomanip>
 
 class SemanticAnalyzer {
     public: 
@@ -19,11 +20,10 @@ class SemanticAnalyzer {
 
         std::vector<std::string> errors;
         std::vector<std::string> warnings;
+        SymbolTable symbolTable;
 
         private:
             CSTNode* cst;
-            SymbolTable symbolTable;
-
             CSTNode* visit(CSTNode* node);
             std::string resolveType(CSTNode* node);
             std::string collectCharList(CSTNode* node);

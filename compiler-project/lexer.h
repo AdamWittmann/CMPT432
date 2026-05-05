@@ -12,24 +12,26 @@ struct LexResult {
 };
 class Lexer {
 
-   public:
+    public:
 
-        // Lexer takes source string
+      // Lexer takes source string
       Lexer(std::string source);
 
         // destructor
       ~Lexer();
 
+      void setVerbose(bool verbose);
       std::vector<LexResult> lex();
-
+  
       
    private:
-
-   // To keep track of state
-   std::string source;
-   int pos;
-   int line;
-   int col;
+    // Verbose Debugging
+    bool verbose;
+    // To keep track of state
+    std::string source;
+    int pos;
+    int line;
+    int col;
 
    // Helper Methods
    char current();

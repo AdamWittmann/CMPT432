@@ -6,7 +6,7 @@
 #include "cst_node.h"
 #include "semantic_analyzer.h"
 int main(int argc, char* argv[]){
-
+    bool verbose = true;
     // Check if there is a file
     if(argc < 2){
         std::cerr << "Usage: ./compiler <source_file>" << std::endl;
@@ -29,8 +29,11 @@ int main(int argc, char* argv[]){
         source += line + "\n";
     }
 
+    
     // Pass to lexer
     Lexer lexer(source);
+    // pass lexer verbose debug flag
+    lexer.setVerbose(verbose);
     std::vector<LexResult> results = lexer.lex();
 
     int programNum = 1;
@@ -56,6 +59,11 @@ int main(int argc, char* argv[]){
             if(parser.errors.empty()){
                 std::cout << "Parse successful" << std::endl;
                 
+                // Verbose printing enables printing CST-- Check line 9
+                if(verbose){
+                    std::cout << "\n=== CST ===" << std::endl;
+                    cst->print();
+                }
                 // Semantic analysis
                 SemanticAnalyzer analyzer(cst);
                 CSTNode* ast = analyzer.analyze();
@@ -69,6 +77,9 @@ int main(int argc, char* argv[]){
                 
                 if(analyzer.errors.empty()){
                     std::cout << "Semantic analysis passed with " << analyzer.warnings.size() << " warnings." << std::endl;
+                    if(verbose){
+                        analyzer.symbolTable.printSymbolTable();
+                    }
                 } else {
                     std::cout << "Semantic analysis failed with " << analyzer.errors.size() << " errors." << std::endl;
                     delete ast;
