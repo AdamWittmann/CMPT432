@@ -4,7 +4,7 @@
 
 // Internal node constructor
 CSTNode::CSTNode(std::string label):
-    label(label), token(nullptr), isLeaf(false) {}
+    label(label), token(Token(EOF_TOKEN, "", 0, 0)), isLeaf(false) {}
 
 // Leaf node constructor
 CSTNode::CSTNode(std::string label, Token* token):
