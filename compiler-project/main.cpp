@@ -23,10 +23,10 @@ int main(int argc, char* argv[]){
     }
 
     // Read in the file
-    std::string line;
+    std::string fileLine;
     std::string source;
-    while(std::getline(file, line)){
-        source += line + "\n";
+    while(std::getline(file, fileLine)){
+        source += fileLine + "\n";
     }
 
     
@@ -78,12 +78,13 @@ int main(int argc, char* argv[]){
                 if(analyzer.errors.empty()){
                     std::cout << "Semantic analysis passed with " << analyzer.warnings.size() << " warnings." << std::endl;
                     if(verbose){
+                        std::cout << "\n=== Symbol Table for Program " << programNum << " ===" << std::endl;
                         analyzer.symbolTable.printSymbolTable();
                     }
                 } else {
                     std::cout << "Semantic analysis failed with " << analyzer.errors.size() << " errors." << std::endl;
                     delete ast;
-                    delete cst;
+                    // delete cst;
                     return 1;
                 }
                 delete ast;
@@ -93,10 +94,10 @@ int main(int argc, char* argv[]){
                 }
                 std::cout << "Parser completed program " << programNum 
                         << " with " << parser.errors.size() << " errors." << std::endl;
-                delete cst;
+                // delete cst;
                 return 1;
             }
-            delete cst;
+            // delete cst;
         } else {
             return 1;
         }
