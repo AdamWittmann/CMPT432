@@ -15,7 +15,6 @@ CSTNode* SemanticAnalyzer:: analyze() {
 // Visit
 // This builds ast nodes if the child isnt null
 CSTNode* SemanticAnalyzer::visit(CSTNode* node){
-    std::cerr << "DEBUG visit: " << node->label << std::endl;
     if(node == nullptr) return nullptr;
 
     std::string label = node->label;
@@ -42,12 +41,14 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
 
     if(label == "VarDecl"){
         // get type from first child's token value
-        std::string type = node->children[0]->token->value;
+        std::string type = node->children[0]->token.value;
         // get name from second child's first child's token value
-        std::string name = node->children[1]->children[0]->token->value;
+        std::string name = node->children[1]->children[0]->token.value;
 
         // declare in symbol table
-        symbolTable.declared(name,type);
+        int line = node->children[1]->children[0]->token.line;
+        int column = node->children[1]->children[0]->token.column;
+        symbolTable.declared(name,type, line, column);
 
         // build node
         CSTNode* astNode = new CSTNode("VarDecl");
@@ -56,15 +57,15 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
         return astNode;
     }
     if(label == "AssignmentStatement"){
-        std::string id = node->children[0]->token->value;
+        std::string id = node->children[0]->token.value;
         
 
         // check if declared
         Symbol* sym = symbolTable.lookup(id);
         if(sym == nullptr){
             errors.push_back("Error: undeclared variable '" + id + "' at (" +
-                std::to_string(node->children[0]->token->line) + "," +
-                std::to_string(node->children[0]->token->column) + ")");
+                std::to_string(node->children[0]->token.line) + "," +
+                std::to_string(node->children[0]->token.column) + ")");
         } else {
             // resolve type of expression
             std::string exprType = resolveType(node->children[2]);
@@ -129,13 +130,13 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
     }
 
     if(label == "ID"){
-        std::string name = node->children[0]->token->value;
+        std::string name = node->children[0]->token.value;
         Symbol* sym = symbolTable.lookup(name);
         // if not pointing to definition return undeclared
         if(sym == nullptr){
             errors.push_back("Error: undeclared variable '" + name + "' at (" +
-            std::to_string(node->children[0]->token->line) + "," +
-            std::to_string(node->children[0]->token->column) + ")");
+            std::to_string(node->children[0]->token.line) + "," +
+            std::to_string(node->children[0]->token.column) + ")");
         } else {
             if(!sym->isInit){
                 warnings.push_back("WARNING: variable '" + name + "' used without being initialized");
@@ -175,7 +176,7 @@ std::string SemanticAnalyzer::resolveType(CSTNode* node){
     if(label == "BooleanExpr") return "boolean";
     if(label == "Expr") return resolveType(node->children[0]);
     if(label == "ID"){
-        std::string name = node->children[0]->token->value;
+        std::string name = node->children[0]->token.value;
         Symbol* sym = symbolTable.lookup(name);
         if(sym == nullptr) return "unknown";
         return sym->type;
@@ -189,7 +190,7 @@ std::string SemanticAnalyzer::collectCharList(CSTNode* node){
     if(node->label == "CharList"){
         if(node->children[0]->label == "Epsilon") return "";
         // child[0] is the char leaf, [2] is another charList
-        std::string ch = node->children[0]->token->value;
+        std::string ch = node->children[0]->token.value;
         return ch + collectCharList(node->children[1]);
     }
     return "";

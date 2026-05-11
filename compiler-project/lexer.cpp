@@ -8,10 +8,16 @@
 Lexer::Lexer(std::string source)
     // Cpp initialization list
     // Lexer will always start at pos 0, line 1, and col 1.
-    : source(source), pos(0), line(1), col(1) {}
+    : source(source), pos(0), line(1), col(1), verbose(false) {
+}
 
 Lexer::~Lexer() = default;
 
+
+// set verbose mode
+void Lexer::setVerbose(bool verbose){
+    this->verbose = verbose;
+}
 // Returns Current Character
 char Lexer::current(){
     // Null check for edge cases

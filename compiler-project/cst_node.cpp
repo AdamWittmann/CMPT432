@@ -4,10 +4,10 @@
 
 // Internal node constructor
 CSTNode::CSTNode(std::string label):
-    label(label), token(nullptr), isLeaf(false) {}
+    label(label), token(Token(EOF_TOKEN, "", 0, 0)), isLeaf(false) {}
 
 // Leaf node constructor
-CSTNode::CSTNode(std::string label, Token* token):
+CSTNode::CSTNode(std::string label, Token token):
     label(label), token(token), isLeaf(true) {}
 
 // Kill off the children
@@ -28,7 +28,7 @@ void CSTNode::print(int depth) const {
         std::cout << " ";
     }
     if(isLeaf){
-    std::cout << label << " [ " << token->value << " ]" << std::endl;
+    std::cout << label << " [ " << token.value << " ]" << std::endl;
     }else {
         std::cout << label << std::endl;
     }

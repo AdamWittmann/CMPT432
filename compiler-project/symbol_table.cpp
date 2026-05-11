@@ -1,5 +1,6 @@
 #include "symbol_table.h"
-
+#include <iomanip>
+#include <iostream>
 SymbolTable::SymbolTable():
     currentScope(0) {}
 
@@ -28,7 +29,7 @@ void SymbolTable::exitScope(){
     currentScope--;
 }
 
-bool SymbolTable::declared(std::string name, std::string type){
+bool SymbolTable::declared(std::string name, std::string type, int line, int column){    
     // does name already exist in current scope (redeclaration error)
     if(scopeStack.back().count(name)){
         errors.push_back("Error: redeclaration of variable '" + name + "' at scope " + std::to_string(currentScope));
@@ -41,9 +42,13 @@ bool SymbolTable::declared(std::string name, std::string type){
     s.scope = currentScope;
     s.isInit = false;
     s.isUsed = false;
+    s.line = line;
+    s.column = column;
     scopeStack.back()[name] = s;
+    allSymbols.push_back(s);
     return true;
 }
+
 Symbol* SymbolTable::lookup(std::string name){
     // Search from top of stack downwards
     for(int i = scopeStack.size() - 1; i >= 0; i--){
@@ -55,6 +60,7 @@ Symbol* SymbolTable::lookup(std::string name){
     // return nullptr if not found
     return nullptr;
 }
+
 bool SymbolTable::markInitialized(std::string name){
     // find symbol via lookup
     // set isInit = true
@@ -66,6 +72,7 @@ bool SymbolTable::markInitialized(std::string name){
     s->isInit = true;
     return true;
 }
+
 bool SymbolTable::markUsed(std::string name){
     // find symbol via lookup
     // set isUsed = true
@@ -76,6 +83,27 @@ bool SymbolTable::markUsed(std::string name){
     }
     s->isUsed = true;
     return true;
+}
+
+void SymbolTable::printSymbolTable(int programNum){
+    std::cout << "\n=== Symbol Table for Program " << programNum << " ===" << std::endl;
+    std::cout << std::left
+              << std::setw(10) << "Name"
+              << std::setw(10) << "Type"
+              << std::setw(8)  << "Scope"
+              << std::setw(6)  << "Line"
+              << std::setw(6)  << "Col"
+              << std::endl;
+    std::cout << std::string(40, '-') << std::endl;
+    for(const auto& symbol : allSymbols){
+        std::cout << std::left
+                  << std::setw(10) << symbol.name
+                  << std::setw(10) << symbol.type
+                  << std::setw(8)  << symbol.scope
+                  << std::setw(6)  << symbol.line
+                  << std::setw(6)  << symbol.column
+                  << std::endl;
+    }
 }
 
 
