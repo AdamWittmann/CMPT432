@@ -3,25 +3,24 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-
+#include <iostream>
+#include <iomanip>
 
 // Constructor
-CodeGenerator::CodeGenerator(CSTNode* ast) 
-:   ast(ast) 
-    codePtr(0),
-    heapPtr(0xFF),
-    tempCounter(0),
-    jumpCounter(0)
+CodeGenerator::CodeGenerator(CSTNode* ast)
+    : ast(ast),
+      codePtr(0),
+      heapPtr(0xFF),
+      tempCounter(0),
+      jumpCounter(0)
 {
     // initialize to empty image (filled with 0x00)
-    std::fill(std::begin(image), std::end(img), 0x00)
+    std::fill(std::begin(image), std::end(image), 0x00);
 }
 
 CodeGenerator::~CodeGenerator() {}
 
-
-// Entry point -- I used claude to lay out the phases
-bool CodeGenerator::generate(){
+bool CodeGenerator::generate() {
     // Phase 1 - walk AST and emit code
     genBlock(ast->children[0]);
 
@@ -29,16 +28,27 @@ bool CodeGenerator::generate(){
     emit(0x00);
 
     // Phase 2 - assign static addresses after code
+    int staticAddr = codePtr;
+    for(auto& tv : tempVars) {
+        tv.address = staticAddr;
+        staticAddr += 1; // each variable takes 1 byte (absolute address)
+        if(staticAddr >= heapPtr) {
+            errors.push_back("Error: codegen - not enough memory to allocate variable '" + tv.varName + "'");
+            return false;
+        }
+    }
 
     // Phase 3 - backpatch static addresses
+    backpatchStatic();
 
     // Phase 4 - backpatch jumps
+    backpatchJumps();
 
     return errors.empty();
 }
 
 // I used claude to print the image
-void CodeGenerator::printImage() const {
+void CodeGenerator::printImage() {
     std::cout << "\n=== Code Generation ===" << std::endl;
     for(int i = 0; i < 256; i++) {
         if(i % 8 == 0) {
@@ -68,7 +78,15 @@ void CodeGenerator::exitScope() {
 
 }
 
-std::string CodeGenerator::newTemp(std::String varName, std::string type) {
+void CodeGenerator::emit(unit8_t byte) {
+    if(codePtr >= heapPtr) {
+        errors.push_back("Error: codegen - code overflow, not enough memory to emit byte");
+        return;
+    }
+    image[codePtr++] = byte;
+}
+
+std::string CodeGenerator::newTemp(std::string varName, std::string type) {
     std::string tempName = "T" + std::to_string(tempCounter++);
 
     TempVar tv;
@@ -108,14 +126,14 @@ void CodeGenerator::placeLabel(int jumpId) {
 }
 
 // Write a string to the heap (starts at 0xFF) and decrement heapPtr and return.
-int CodeGenerator::writeHeap(std::string str) {
+uint8_t CodeGenerator::writeHeap(std::string str) {
     // we need to make sure we have enough space in heap for string, or else we'll overflow
     int startAddr = heapPtr - str.size(); // calculate start address
     if(startAddr < codePtr) {
         errors.push_back("Error: codegen - heap overflow, not enough space for string '" + str + "'");
         return 0x00; // return null pointer on error
     }
-    for(int i = 0; i < str.size(); i++) {
+    for(size_t i = 0; i < str.size(); i++) {
         image[startAddr + i] = (uint8_t)str[i];
     }
     image[startAddr + str.size()] = 0x00; // null terminator
@@ -123,7 +141,7 @@ int CodeGenerator::writeHeap(std::string str) {
     return startAddr;
 }
 
-void CodeGenerator::backpatchStatic(uint8_t address) {
+void CodeGenerator::backpatchStatic() {
     for(const auto& placeholder : staticPlaceholders) {
         // walk the tempVars to find the address for this tempName
         
@@ -133,9 +151,6 @@ void CodeGenerator::backpatchStatic(uint8_t address) {
                     image[placeholder.imageIndex] = (uint8_t)tv.address; // low byte
                     image[placeholder.imageIndex + 1] = 0x00; // high byte | always for 256 byte image.
                 }
-                // write the address into the image at the placeholder location (lil endian)
-                image[placeholder.imageIndex] = (uint8_t)(tv.address & 0xFF); // low byte
-                image[placeholder.imageIndex + 1] = (uint8_t)((tv.address >> 8) & 0xFF); // high byte
             }
         }
     }
@@ -152,6 +167,7 @@ void CodeGenerator::backpatchJumps() {
         // write the offset from the jump instruction to the target address
         int offset = targetAddr - (placeholder.imageIndex + 1); // +1 because offset is calculated from the byte after the jump instruction
         image[placeholder.imageIndex] = (uint8_t)(offset & 0xFF); // low byte    }
+        }
 }
 
 void CodeGenerator::genBlock(CSTNode* node) {
@@ -210,7 +226,7 @@ void CodeGenerator::genExpr(CSTNode* node) {
     } else if(node->label == "BooleanExpr") {
         genBooleanExpr(node);
     } else if (node->label == "ID") {
-        genID(node);
+        genId(node);
     } else {
         errors.push_back("Error: codegen - unrecognized expression type '" + node->label + "'");
     }
@@ -299,34 +315,35 @@ void CodeGenerator::genPrint(CSTNode* node) {
 }
 
 void CodeGenerator::genBooleanExpr(CSTNode* node) {
+    std::string op = node->children[1]->label;
+
     if(node->children.size() == 1) {
         // just a boolean literal
         std::string boolVal = node->children[0]->token.value;
         emit(0xA9); // LDA immediate
         emit(boolVal == "true" ? 0x01 : 0x00);
    } else if(node->children.size() == 3){
-    // evaluate left, store in temp
-    genExpr(node->children[0]);
-    std::string temp = newTemp("", "int");
-    emit(0x8D);
-    emitStaticRef(temp);
+        // evaluate left, store in temp
+        genExpr(node->children[0]);
+        std::string temp = newTemp("", "int");
+        emit(0x8D);
+        emitStaticRef(temp);
 
-    // evaluate right, store in X via temp
-    genExpr(node->children[2]);
-    std::string temp2 = newTemp("", "int");
-    emit(0x8D);
-    emitStaticRef(temp2);
+        // evaluate right, store in X via temp
+        genExpr(node->children[2]);
+        std::string temp2 = newTemp("", "int");
+        emit(0x8D);
+        emitStaticRef(temp2);
 
-    // LDX absolute - load right side into X
-    emit(0xAE);
-    emitStaticRef(temp2);
+        // LDX absolute - load right side into X
+        emit(0xAE);
+        emitStaticRef(temp2);
 
-    // CPX absolute - compare X with left side
-    emit(0xEC);
-    emitStaticRef(temp);
+        // CPX absolute - compare X with left side
+        emit(0xEC);
+        emitStaticRef(temp);
 
-    std::string op = node->children[1]->label;
-
+   }
     // branch around the "true" result
     int falseJump = newJumpId();
     if(op == "DOUBLE_EQUALS"){
@@ -362,14 +379,14 @@ void CodeGenerator::genWhile(CSTNode* node) {
 
     // Sore result, laod into X, compare to 1
     std::string temp = newTemp("", "boolean");
-    emit(0x8D; emitStaticRef(temp));
+    emit(0x8D); emitStaticRef(temp);
     emit(0xAE); emitStaticRef(temp);
     emit(0xE0); emit(0x01);
 
     // branch around the body if false
-    int bodyJump = newJumpId();
+    int loopEnd = newJumpId();
     emit(0xD0); // BNE - branch if NOT equal (i.e. if false)
-    jumpPlaceholders.push_back({codePtr, bodyJump});
+    jumpPlaceholders.push_back({codePtr, loopEnd});
     emit(0x00); // placeholder
 
     // emit body block
@@ -407,29 +424,3 @@ void CodeGenerator::genIf(CSTNode* node) {
     placeLabel(elseJump);
 }
 
-bool CodeGenerator::generate() {
-    // Phase 1 - walk AST and emit code
-    genBlock(ast->children[0]);
-
-    // Emit BRK to halt
-    emit(0x00);
-
-    // Phase 2 - assign static addresses after code
-    int staticAddr = codePtr;
-    for(auto& tv : tempVars) {
-        tv.address = staticAddr;
-        staticAddr += 1; // each variable takes 1 byte (absolute address)
-        if(staticAddr >= heapPtr) {
-            errors.push_back("Error: codegen - not enough memory to allocate variable '" + tv.varName + "'");
-            return false;
-        }
-    }
-
-    // Phase 3 - backpatch static addresses
-    backpatchStatic();
-
-    // Phase 4 - backpatch jumps
-    backpatchJumps();
-
-    return errors.empty();
-}

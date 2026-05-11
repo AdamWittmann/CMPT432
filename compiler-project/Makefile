@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -g
 
 TARGET = compiler
-SOURCES = main.cpp token.cpp lexer.cpp parser.cpp cst_node.cpp symbol_table.cpp semantic_analyzer.cpp
+SOURCES = main.cpp token.cpp lexer.cpp parser.cpp cst_node.cpp symbol_table.cpp semantic_analyzer.cpp code_generator.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

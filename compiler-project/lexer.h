@@ -22,8 +22,10 @@ class Lexer {
 
       std::vector<LexResult> lex();
       
-      bool verbose;
+      void setVerbose(bool verbose);
    private:
+
+    bool verbose;
 
    // To keep track of state
    std::string source;

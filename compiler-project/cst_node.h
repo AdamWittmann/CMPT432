@@ -7,7 +7,7 @@
 class CSTNode {
     public:
         std::string label; // Label for 'Block', 'Program', ect...
-        Token* token; // Null pointer
+        Token token; // by value not pointer
         std::vector<CSTNode*> children; // Stores leaf nodes
         bool isLeaf; // flag
 
@@ -15,8 +15,7 @@ class CSTNode {
     CSTNode(std::string label);
 
     // Leaf Node Constructor
-    // Token* just points to the memory address of token that already exists. Kinda cool.
-    CSTNode(std::string label, Token* token);
+    CSTNode(std::string label, Token token);
     
     // Destructor
     ~CSTNode();

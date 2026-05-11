@@ -13,6 +13,11 @@ Lexer::Lexer(std::string source)
 
 Lexer::~Lexer() = default;
 
+
+// set verbose mode
+void Lexer::setVerbose(bool verbose){
+    this->verbose = verbose;
+}
 // Returns Current Character
 char Lexer::current(){
     // Null check for edge cases
