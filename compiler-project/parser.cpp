@@ -39,7 +39,7 @@ CSTNode* Parser::match(TokenType expected){
         // advance current
         current++;
         // return the leaf node
-        return new CSTNode(t.typeToString(), &tokens[current - 1]);
+        return new CSTNode(t.typeToString(), t);
     } else {
         // push error with line/col info
         Token temp(expected, "", 0, 0);

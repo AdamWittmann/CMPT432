@@ -22,7 +22,7 @@ CodeGenerator::~CodeGenerator() {}
 
 bool CodeGenerator::generate() {
     // Phase 1 - walk AST and emit code
-    genBlock(ast->children[0]);
+    genBlock(ast);
 
     // Emit BRK to halt
     emit(0x00);
@@ -48,18 +48,15 @@ bool CodeGenerator::generate() {
 }
 
 // I used claude to print the image
-void CodeGenerator::printImage() {
+void CodeGenerator::printImage(){
     std::cout << "\n=== Code Generation ===" << std::endl;
-    for(int i = 0; i < 256; i++) {
-        if(i % 8 == 0) {
-            std::cout << std::endl;
-            std::cout << "0x" << std::hex << std::uppercase
-                      << std::setw(2) << std::setfill('0') << i << " ";
+    for(int i = 0; i < 256; i++){
+        if(i % 8 == 0){
+            printf("\n%02X | ", i);
         }
-        std::cout << std::hex << std::uppercase
-                  << std::setw(2) << std::setfill('0') << (int)image[i] << " ";
+        printf("%02X ", (uint8_t)image[i]);
     }
-    std::cout << std::dec << std::endl;
+    printf("\n");
 }
 
 // Emit a static address placeholder and record it
@@ -78,7 +75,7 @@ void CodeGenerator::exitScope() {
 
 }
 
-void CodeGenerator::emit(unit8_t byte) {
+void CodeGenerator::emit(uint8_t byte) {
     if(codePtr >= heapPtr) {
         errors.push_back("Error: codegen - code overflow, not enough memory to emit byte");
         return;
@@ -315,7 +312,6 @@ void CodeGenerator::genPrint(CSTNode* node) {
 }
 
 void CodeGenerator::genBooleanExpr(CSTNode* node) {
-    std::string op = node->children[1]->label;
 
     if(node->children.size() == 1) {
         // just a boolean literal
@@ -323,6 +319,7 @@ void CodeGenerator::genBooleanExpr(CSTNode* node) {
         emit(0xA9); // LDA immediate
         emit(boolVal == "true" ? 0x01 : 0x00);
    } else if(node->children.size() == 3){
+        std::string op = node->children[1]->label;
         // evaluate left, store in temp
         genExpr(node->children[0]);
         std::string temp = newTemp("", "int");
@@ -343,7 +340,6 @@ void CodeGenerator::genBooleanExpr(CSTNode* node) {
         emit(0xEC);
         emitStaticRef(temp);
 
-   }
     // branch around the "true" result
     int falseJump = newJumpId();
     if(op == "DOUBLE_EQUALS"){
@@ -367,6 +363,7 @@ void CodeGenerator::genBooleanExpr(CSTNode* node) {
 
     // done
     placeLabel(doneJump);
+    }
 }
 
 //need to record two jump IDs, one for end, one to jump back to start
