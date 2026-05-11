@@ -1,6 +1,6 @@
 # Alan Compiler
 
-A complete four-phase compiler for the Alan language, targeting 6502a machine code that executes on SvegOS. Built for CMPT 432 at Marist College.
+A complete four-phase compiler for the Alan language written in C++, targeting 6502a machine code that executes on SvegOS. Built for CMPT 432 at Marist College.
 
 ---
 
