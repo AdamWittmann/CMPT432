@@ -1,0 +1,8 @@
+{
+    boolean b
+    b = true
+    if (b == true) {
+        print(b)
+    }
+}
+$

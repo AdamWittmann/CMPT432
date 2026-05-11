@@ -1,0 +1,6 @@
+{
+    /* This comment never ends
+    int x
+    x = 5
+}
+$

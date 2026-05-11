@@ -1,0 +1,20 @@
+{
+    /* This tests all language features */
+    int x
+    string s
+    boolean b
+    
+    x = 0
+    s = "hello world"
+    b = true
+    
+    while (x != 5) {
+        print(x)
+        x = 1
+    }
+    
+    if (b == true) {
+        print(s)
+    }
+}
+$

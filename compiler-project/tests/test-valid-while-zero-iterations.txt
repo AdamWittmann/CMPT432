@@ -1,0 +1,8 @@
+{
+    boolean b
+    b = false
+    while (b == true) {
+        print(b)
+    }
+}
+$

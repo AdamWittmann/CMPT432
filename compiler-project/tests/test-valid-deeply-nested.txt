@@ -1,0 +1,21 @@
+{
+    int a
+    a = 1
+    {
+        int b
+        b = 2
+        {
+            int c
+            c = 3
+            {
+                int d
+                d = 4
+                print(d)
+            }
+            print(c)
+        }
+        print(b)
+    }
+    print(a)
+}
+$

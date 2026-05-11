@@ -1,0 +1,12 @@
+{
+    int a
+    string s
+    boolean b
+    a = 5
+    s = "hello"
+    b = true
+    print(a)
+    print(s)
+    print(b)
+}
+$
