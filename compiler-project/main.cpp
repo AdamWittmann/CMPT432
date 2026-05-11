@@ -57,6 +57,7 @@ int main(int argc, char* argv[]){
                 std::cout << "Parse successful" << std::endl;
                 
                 // Semantic analysis
+                std::cout << "\n Semantic analyzing" << std::endl;
                 SemanticAnalyzer analyzer(cst);
                 CSTNode* ast = analyzer.analyze();
                 
@@ -69,13 +70,28 @@ int main(int argc, char* argv[]){
                 
                 if(analyzer.errors.empty()){
                     std::cout << "Semantic analysis passed with " << analyzer.warnings.size() << " warnings." << std::endl;
+                    if(verbose){
+                        analyzer.symbolTable.printSymbolTable(programNum);
+                    }
+                    
+                    // Code generation
+                    std::cout << "\nGenerating code for program " << programNum << std::endl;
+                    CodeGenerator codegen(ast);
+                    if(codegen.generate()){
+                        std::cout << "Code generation successful." << std::endl;
+                        codegen.printImage();
+                    } else {
+                        for(const std::string& err : codegen.errors){
+                            std::cerr << err << std::endl;
+                        }
+                        std::cout << "Code generation failed with " << codegen.errors.size() << " errors." << std::endl;
+                    }
+                    delete ast;
                 } else {
                     std::cout << "Semantic analysis failed with " << analyzer.errors.size() << " errors." << std::endl;
                     delete ast;
-                    delete cst;
                     return 1;
                 }
-                delete ast;
             } else {
                 for(const std::string& err : parser.errors){
                     std::cerr << err << std::endl;
