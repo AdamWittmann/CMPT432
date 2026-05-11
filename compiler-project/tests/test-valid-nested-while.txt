@@ -1,0 +1,15 @@
+{
+    int a
+    int b
+    a = 0
+    b = 0
+    while (a != 2) {
+        b = 0
+        while (b != 2) {
+            b = 1 + b
+        }
+        a = 1 + a
+    }
+    print(a)
+}
+$

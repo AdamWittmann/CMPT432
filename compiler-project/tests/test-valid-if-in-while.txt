@@ -1,0 +1,13 @@
+{
+    int a
+    boolean b
+    a = 0
+    b = true
+    while (a != 3) {
+        if (b == true) {
+            print(a)
+        }
+        a = 1 + a
+    }
+}
+$

@@ -1,0 +1,12 @@
+{
+    boolean a
+    boolean b
+    a = true
+    b = true
+    if (a == true) {
+        if (b == true) {
+            print(a)
+        }
+    }
+}
+$

@@ -1,0 +1,6 @@
+{
+    string s
+    s = "abcdefghij"
+    print(s)
+}
+$

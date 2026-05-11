@@ -1,0 +1,5 @@
+{/* almost every token */ ()
+print=whileif"intstring"
+intstringbooleanfalse
+true
+==!=+ a 0123456789}$
