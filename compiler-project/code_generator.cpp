@@ -83,16 +83,100 @@ std::string CodeGenerator::newTemp(std::String varName, std::string type) {
 
     return tempName;
 }
-
-std::string CodeGenerator::lookupTemp(std::string varName) {
-    if(!tempvars){
-        // add warning/debug for now
-        std::cout << "Somethings not working" << std::endl;
+std::string CodeGenerator::lookupTemp(std::string varName){
+    // edited with claude to make
+    for(int i = scopeStack.size() - 1; i >= 0; i--){
+        auto it = scopeStack[i].find(varName);
+        if(it != scopeStack[i].end()){
+            return it->second;
+        }
     }
-    for (int i = myVector.size() - 1; i >= 0; --i) {
-    if (myVector[i] == targetValue) {
-        // Found it!
-        break;
+    errors.push_back("Error: codegen - undeclared variable '" + varName + "'");
+    return "";
+}
+
+// simple increment for unique jump IDs
+int CodeGenerator::newJumpId() {
+return jumpCounter++;
+
+}
+
+// Record where a label is defined for backpatching
+// labelTargets is jumpId -> codePtr
+void CodeGenerator::placeLabel(int jumpId) {
+    labelTargets[jumpId] = codePtr;
+}
+
+// Write a string to the heap (starts at 0xFF) and decrement heapPtr and return.
+int CodeGenerator::writeHeap(std::string str) {
+    // we need to make sure we have enough space in heap for string, or else we'll overflow
+    int startAddr = heapPtr - str.size(); // calculate start address
+    if(startAddr < codePtr) {
+        errors.push_back("Error: codegen - heap overflow, not enough space for string '" + str + "'");
+        return 0x00; // return null pointer on error
+    }
+    for(int i = 0; i < str.size(); i++) {
+        image[startAddr + i] = (uint8_t)str[i];
+    }
+    image[startAddr + str.size()] = 0x00; // null terminator
+    heapPtr = startAddr - 1; // update heap pointer
+    return startAddr;
+}
+
+void CodeGenerator::backpatchStatic(uint8_t address) {
+    for(const auto& placeholder : staticPlaceholders) {
+        // walk the tempVars to find the address for this tempName
+        
+        for(const auto& tv : tempVars){
+            if(tv.tempName == placeholder.tempName) {
+                if(tv.tempName == placeholder.tempName) {
+                    image[placeholder.imageIndex] = (uint8_t)tv.address; // low byte
+                    image[placeholder.imageIndex + 1] = 0x00; // high byte | always for 256 byte image.
+                }
+                // write the address into the image at the placeholder location (lil endian)
+                image[placeholder.imageIndex] = (uint8_t)(tv.address & 0xFF); // low byte
+                image[placeholder.imageIndex + 1] = (uint8_t)((tv.address >> 8) & 0xFF); // high byte
+            }
+        }
     }
 }
+
+void CodeGenerator::backpatchJumps() {
+    for(const auto& placeholder : jumpPlaceholders) {
+        auto it = labelTargets.find(placeholder.jumpId);
+        if(it == labelTargets.end()) {
+            errors.push_back("Error: codegen - undefined label for jump ID " + std::to_string(placeholder.jumpId));
+            continue;
+        }
+        int targetAddr = it->second;
+        // write the offset from the jump instruction to the target address
+        int offset = targetAddr - (placeholder.imageIndex + 1); // +1 because offset is calculated from the byte after the jump instruction
+        image[placeholder.imageIndex] = (uint8_t)(offset & 0xFF); // low byte    }
+}
+
+void CodeGenerator::genBlock(CSTNode* node) {
+    enterScope();
+    for(const auto& child : node->children) {
+        if(child->label == "VarDecl"){
+            //handle var decl
+        } else if(child->label == "AssignmentStatement"){
+            //handle assignment
+
+        } else if (child->label == "PrintStatement"){
+            //handle print
+
+        } else if (child->label == "WhileStatement"){
+            //handle while
+
+        } else if (child->label == "IfStatement"){
+            //handle if
+
+        } else if (child->label == "Block") {
+            // nested block - recurse
+            genBlock(child);
+        } else {
+            errors.push_back("Error: codegen - unrecognized statement type '" + child->label + "'");
+        }
+
+    }
 }
