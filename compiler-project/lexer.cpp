@@ -70,8 +70,9 @@ std::vector<LexResult> Lexer::lex(){
     // empty vector to store tokens
     std::vector<Token> tokens;
     
-    // empty vector to store error messages
+    // empty vector to store error & warning messages
     std::vector<std::string> errors;
+    std::vector<std::string> warnings;
     // While not at the end of file.
     while(!isEnd()){
         
@@ -82,8 +83,6 @@ std::vector<LexResult> Lexer::lex(){
         if(isEnd()) {
             break;
         }
-        std::cerr << "DEBUG pos=" << pos << " char='" << current() << "'" << std::endl;
-
         int tokenLine = line;
         int tokenCol = col;
         char c = current();
@@ -122,9 +121,10 @@ std::vector<LexResult> Lexer::lex(){
 
             case '$':
                 tokens.push_back(Token(EOP,"$", tokenLine, tokenCol));
-                results.push_back({tokens, errors});
+                results.push_back({tokens, errors, warnings});
                 tokens.clear();
                 errors.clear();
+                warnings.clear();
                 advance();
                 break;
 
@@ -177,10 +177,10 @@ std::vector<LexResult> Lexer::lex(){
                 if(!isEnd()){
                     tokens.push_back(Token(QUOTE, "\"", tokenLine, tokenCol));
                     advance();
-                }else{
-
-                    // Error: Unterminated string literal
-                    errors.push_back("Error: Unterminated string literal at (" + std::to_string(line) + "," + std::to_string(col) + ")" + "\nAre you forgetting a quote?");
+                }else{ 
+                    tokens.push_back(Token(QUOTE, "\"", tokenLine, tokenCol)); // add the missing quote to allow parsing to continue
+                    // Error: Unterminated string literal -> warning bc we fix it
+                    warnings.push_back("Warning: Unterminated string literal at (" + std::to_string(line) + "," + std::to_string(col) + ")" + "\nAre you forgetting a quote?");
                 }
                 break;
 
@@ -204,7 +204,7 @@ std::vector<LexResult> Lexer::lex(){
                         // If reaches end of the file before finding terminating comment symbol
                         if(isEnd()){
                             // Return error for unterminated comment
-                            errors.push_back("Error: Unterminated comment at line:(" + std::to_string(line) + "," + std::to_string(col) + ")" +"\nAre you forgetting a '*/'?");
+                            warnings.push_back("Warning: Unterminated comment at line:(" + std::to_string(line) + "," + std::to_string(col) + ")" +"\nAre you forgetting a '*/'? I'll fix it because im amazing, but just know that you should have closed your comment.");
                         }
                     }else{
                         // Lone / is not valid return error
@@ -268,9 +268,12 @@ std::vector<LexResult> Lexer::lex(){
     if(!tokens.empty() || !errors.empty()){
         // check if last token is not EOP
         if(tokens.empty() || tokens.back().type != EOP){
-            errors.push_back("WARNING: missing EOP '$' at end of program");
+            tokens.push_back(Token(EOP, "$", line, col)); // add missing EOP to allow parsing to continue
+            warnings.push_back("Warning: missing EOP '$' at end of program");
         }
-        results.push_back({tokens, errors});
+        results.push_back({tokens, errors, warnings});
+
+        warnings.clear();
     }
 
     return results;
