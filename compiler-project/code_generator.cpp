@@ -159,24 +159,277 @@ void CodeGenerator::genBlock(CSTNode* node) {
     for(const auto& child : node->children) {
         if(child->label == "VarDecl"){
             //handle var decl
+            genVarDecl(child);
         } else if(child->label == "AssignmentStatement"){
             //handle assignment
-
+            genAssignment(child);
         } else if (child->label == "PrintStatement"){
             //handle print
-
+            genPrint(child);
         } else if (child->label == "WhileStatement"){
             //handle while
-
+            genWhile(child);
         } else if (child->label == "IfStatement"){
             //handle if
-
+            genIf(child);
         } else if (child->label == "Block") {
             // nested block - recurse
             genBlock(child);
         } else {
             errors.push_back("Error: codegen - unrecognized statement type '" + child->label + "'");
         }
-
     }
+    exitScope();
+}
+
+void CodeGenerator::genVarDecl(CSTNode* node) {
+    std::string type = node->children[0]->label;
+    std::string varName = node->children[1]->label;
+    newTemp(varName, type);
+}
+
+void CodeGenerator::genAssignment(CSTNode* node) {
+    std::string varName = node->children[0]->label;
+    std::string tempName = lookupTemp(varName);
+    if(tempName.empty()) return; // error already recorded in lookupTemp
+
+    // for now we only support int literals on the right hand side, so we can just emit the LDA immediate instruction with the value
+    // in the future, this will need to be more complex to handle different expression types and codegen for them
+    genExpr(node->children[1]);
+
+    // STA - store accumulator into variable's address
+    emit(0x8D); // STA absolute
+    emitStaticRef(tempName);
+}
+
+void CodeGenerator::genExpr(CSTNode* node) {
+    if(node->label == "IntExpr") {
+        genIntExpr(node);
+    } else if(node->label == "StringExpr") {
+        genStringExpr(node);
+    } else if(node->label == "BooleanExpr") {
+        genBooleanExpr(node);
+    } else if (node->label == "ID") {
+        genID(node);
+    } else {
+        errors.push_back("Error: codegen - unrecognized expression type '" + node->label + "'");
+    }
+}
+
+void CodeGenerator::genIntExpr(CSTNode* node) {
+    // load digit to A
+    int digit = node->children[0]->token.value[0] - '0';
+    emit(0xA9); // LDA immediate
+    emit((uint8_t)digit);
+
+    if(node->children.size() == 3) {
+        //store current A into a temp
+        std::string temp = newTemp("", "int");
+        emit(0x8D); // STA absolute
+        emitStaticRef(temp);
+
+        //eval right side
+        genExpr(node->children[2]);
+
+        //ADC value from temp
+        emit(0x6D); // ADC absolute
+        emitStaticRef(temp);
+    }
+}
+
+void CodeGenerator::genStringExpr(CSTNode* node) {
+    std::string str = node->children[0]->label;
+    int addr = writeHeap(str);
+    emit(0xA9); // LDA immediate
+    emit((uint8_t)addr);
+}
+
+//load a variables value from static address into A
+void CodeGenerator::genId(CSTNode* node) {
+    std::string varName = node->children[0]->label;
+    std::string tempName = lookupTemp(varName);
+    if(tempName.empty()) return; // error already recorded in lookupTemp
+
+    emit(0xAD); // LDA absolute
+    emitStaticRef(tempName);
+}
+
+void CodeGenerator::genPrint(CSTNode* node) {
+    CSTNode* expr = node->children[0];
+
+    // determin syscall
+    uint8_t syscallCode = 0x01;
+    std::string type = expr->label;
+    
+    if(type == "IntExpr") {
+        syscallCode = 0x01; // OUT instruction for int literals and expressions
+    } else if(type == "StringExpr") {
+        syscallCode = 0x02; // OUT instruction for string (null terminated at address in A)
+    } else if(type == "BooleanExpr") {
+        syscallCode = 0x03; // OUT instruction for boolean (0x00 for false, 0x01 for true)
+    }else if(type == "ID") {
+        // look up type in tempVars
+        std::string varName = expr->children[0]->label;
+        std::string tempName = lookupTemp(varName);
+        for(const auto& tv : tempVars) {
+            if(tv.tempName == tempName) {
+                if(tv.type == "int") {
+                    syscallCode = 0x01;
+                } else if(tv.type == "string") {
+                    syscallCode = 0x02;
+                } else if(tv.type == "boolean") {
+                    syscallCode = 0x03;
+                } else {
+                    errors.push_back("Error: codegen - unrecognized variable type '" + tv.type + "' for print statement");
+                    return;
+                }
+            }
+        }
+    } else {
+        errors.push_back("Error: codegen - unrecognized type in print statement '" + type + "'");
+    }
+    // eval | leaves the result in A
+        genExpr(expr);
+
+        //syscall sequence
+        emit(0xA8); // TAY
+        emit (0xA2); // LDX immediate
+        emit(syscallCode);
+        emit(0xFF); // syscall
+}
+
+void CodeGenerator::genBooleanExpr(CSTNode* node) {
+    if(node->children.size() == 1) {
+        // just a boolean literal
+        std::string boolVal = node->children[0]->token.value;
+        emit(0xA9); // LDA immediate
+        emit(boolVal == "true" ? 0x01 : 0x00);
+   } else if(node->children.size() == 3){
+    // evaluate left, store in temp
+    genExpr(node->children[0]);
+    std::string temp = newTemp("", "int");
+    emit(0x8D);
+    emitStaticRef(temp);
+
+    // evaluate right, store in X via temp
+    genExpr(node->children[2]);
+    std::string temp2 = newTemp("", "int");
+    emit(0x8D);
+    emitStaticRef(temp2);
+
+    // LDX absolute - load right side into X
+    emit(0xAE);
+    emitStaticRef(temp2);
+
+    // CPX absolute - compare X with left side
+    emit(0xEC);
+    emitStaticRef(temp);
+
+    std::string op = node->children[1]->label;
+
+    // branch around the "true" result
+    int falseJump = newJumpId();
+    if(op == "DOUBLE_EQUALS"){
+        emit(0xD0); // BNE - branch if NOT equal
+    } else {
+        emit(0xF0); // BEQ - branch if equal
+    }
+    jumpPlaceholders.push_back({codePtr, falseJump});
+    emit(0x00); // placeholder
+
+    // true case
+    emit(0xA9); emit(0x01); // LDA #01
+    int doneJump = newJumpId();
+    emit(0xD0); // BNE - unconditional (X never 0 after we set it)
+    jumpPlaceholders.push_back({codePtr, doneJump});
+    emit(0x00);
+
+    // false case
+    placeLabel(falseJump);
+    emit(0xA9); emit(0x00); // LDA #00
+
+    // done
+    placeLabel(doneJump);
+}
+
+//need to record two jump IDs, one for end, one to jump back to start
+void CodeGenerator::genWhile(CSTNode* node) {
+    int loopStart = newJumpId();
+    placeLabel(loopStart);
+
+    // eval and leave result in A
+    genExpr(node->children[0]);
+
+    // Sore result, laod into X, compare to 1
+    std::string temp = newTemp("", "boolean");
+    emit(0x8D; emitStaticRef(temp));
+    emit(0xAE); emitStaticRef(temp);
+    emit(0xE0); emit(0x01);
+
+    // branch around the body if false
+    int bodyJump = newJumpId();
+    emit(0xD0); // BNE - branch if NOT equal (i.e. if false)
+    jumpPlaceholders.push_back({codePtr, bodyJump});
+    emit(0x00); // placeholder
+
+    // emit body block
+    genBlock(node->children[1]);
+
+    // jump back to start
+    emit(0xD0); // BNE - unconditional (X never 0 after we set it)
+    jumpPlaceholders.push_back({codePtr, loopStart});
+    emit(0x00);
+
+    // place body label
+    placeLabel(loopEnd);
+}
+
+void CodeGenerator::genIf(CSTNode* node) {
+    // eval condition and leave in A
+    genExpr(node->children[0]);
+
+    // store result in temp, load into X, compare to 1
+    std::string temp = newTemp("", "boolean");
+    emit(0x8D); emitStaticRef(temp);
+    emit(0xAE); emitStaticRef(temp);
+    emit(0xE0); emit(0x01);
+
+    // branch around body if false
+    int elseJump = newJumpId();
+    emit(0xD0); // BNE - branch if NOT equal (i.e. if false)
+    jumpPlaceholders.push_back({codePtr, elseJump});
+    emit(0x00); // placeholder
+
+    // emit body block
+    genBlock(node->children[1]);
+
+    // place else label
+    placeLabel(elseJump);
+}
+
+bool CodeGenerator::generate() {
+    // Phase 1 - walk AST and emit code
+    genBlock(ast->children[0]);
+
+    // Emit BRK to halt
+    emit(0x00);
+
+    // Phase 2 - assign static addresses after code
+    int staticAddr = codePtr;
+    for(auto& tv : tempVars) {
+        tv.address = staticAddr;
+        staticAddr += 1; // each variable takes 1 byte (absolute address)
+        if(staticAddr >= heapPtr) {
+            errors.push_back("Error: codegen - not enough memory to allocate variable '" + tv.varName + "'");
+            return false;
+        }
+    }
+
+    // Phase 3 - backpatch static addresses
+    backpatchStatic();
+
+    // Phase 4 - backpatch jumps
+    backpatchJumps();
+
+    return errors.empty();
 }

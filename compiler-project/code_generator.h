@@ -54,7 +54,7 @@ class CodeGenerator {
             void enterScope();
             void exitScope();
             std::string newTemp(std::string varName, std::string type);
-            std::String lookupTemp(std::string varName);
+            std::string lookupTemp(std::string varName);
 
             // Emit
             void emit(uint8_t byte);
@@ -78,11 +78,11 @@ class CodeGenerator {
             void genPrint(CSTNode* node);
             void genWhile(CSTNode* node);
             void genIf(CSTNode* node);
-            std::string genExpr(CSTNode* node);
-            std::string genIntExpr(CSTNode* node);
-            std::string genStringExpr(CSTNode* node);
-            std::string genBooleanExpr(CSTNode* node);
-            std::string genId(CSTNode* node);
+            void genExpr(CSTNode* node);
+            void genIntExpr(CSTNode* node);
+            void genStringExpr(CSTNode* node);
+            void genBooleanExpr(CSTNode* node);
+            void genId(CSTNode* node);
 };
 
 #endif
