@@ -21,8 +21,8 @@ class Lexer {
       ~Lexer();
 
       std::vector<LexResult> lex();
-
       
+      bool verbose;
    private:
 
    // To keep track of state
