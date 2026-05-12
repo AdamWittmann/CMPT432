@@ -9,10 +9,11 @@
 struct LexResult {
     std::vector<Token> tokens;
     std::vector<std::string> errors;
+    std::vector<std::string> warnings;
 };
 class Lexer {
 
-   public:
+  public:
 
         // Lexer takes source string
       Lexer(std::string source);
@@ -23,9 +24,9 @@ class Lexer {
       std::vector<LexResult> lex();
       
       void setVerbose(bool verbose);
-   private:
+  private:
 
-    bool verbose;
+   bool verbose;
 
    // To keep track of state
    std::string source;

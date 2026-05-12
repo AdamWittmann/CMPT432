@@ -21,15 +21,17 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
 
     if(label == "Block"){
         CSTNode* astNode = new CSTNode("Block");
+        
+        // Trace scope entry before entering
+        traces.push_back("Entering scope " + std::to_string(symbolTable.getScope() + 1));
         symbolTable.enterScope();
-        // Helper function to bypass the statementList and adding the correct statement directly
-        flattenStatementList(node->children[1],astNode);
+        flattenStatementList(node->children[1], astNode);
         symbolTable.exitScope();
+        traces.push_back("Exiting scope " + std::to_string(symbolTable.getScope() + 1));
 
-        // Combine errors from symbolTable and analyzer
+        // Drain symbol table errors and warnings then clear for next scope
         errors.insert(errors.end(), symbolTable.errors.begin(), symbolTable.errors.end());
         warnings.insert(warnings.end(), symbolTable.warnings.begin(), symbolTable.warnings.end());
-        // Clear the errors from symbolTable-- so next program doesnt produce the previous warnings.
         symbolTable.errors.clear();
         symbolTable.warnings.clear();
         return astNode;
@@ -39,44 +41,50 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
         return visit(node->children[0]);
     }
 
+    // Used claude web for tracing optimization. 
     if(label == "VarDecl"){
-        // get type from first child's token value
+        // Extract type and name from CST children
         std::string type = node->children[0]->token.value;
-        // get name from second child's first child's token value
         std::string name = node->children[1]->children[0]->token.value;
-
-        // declare in symbol table
         int line = node->children[1]->children[0]->token.line;
         int column = node->children[1]->children[0]->token.column;
-        symbolTable.declared(name,type, line, column);
 
-        // build node
+        // Register in symbol table and trace the declaration
+        symbolTable.declared(name, type, line, column);
+        traces.push_back("Declared '" + name + "' (" + type + ") at (" + std::to_string(line) + "," + std::to_string(column) + ")");
+
+        // Build AST node with type and name as children
         CSTNode* astNode = new CSTNode("VarDecl");
         astNode->addChild(new CSTNode(type));
         astNode->addChild(new CSTNode(name));
         return astNode;
     }
-    if(label == "AssignmentStatement"){
-        std::string id = node->children[0]->token.value;
-        
 
-        // check if declared
-        Symbol* sym = symbolTable.lookup(id);
-        if(sym == nullptr){
-            errors.push_back("Error: undeclared variable '" + id + "' at (" +
-                std::to_string(node->children[0]->token.line) + "," +
-                std::to_string(node->children[0]->token.column) + ")");
+    // Used claude web for tracing optimization.
+    if(label == "AssignmentStatement"){
+    std::string id = node->children[0]->token.value;
+    Symbol* sym = symbolTable.lookup(id);
+
+    if(sym == nullptr){
+        // Variable used before declaration
+        errors.push_back("Error: undeclared variable '" + id + "' at (" +
+            std::to_string(node->children[0]->token.line) + "," +
+            std::to_string(node->children[0]->token.column) + ")");
+            traces.push_back("✗ Assignment to undeclared variable '" + id + "'");
         } else {
-            // resolve type of expression
+            // Resolve and verify expression type matches declared type
             std::string exprType = resolveType(node->children[2]);
-            // check type matches
             if(sym->type != exprType){
-                errors.push_back("Error: type mismatch for variable '" + id + 
+                errors.push_back("Error: type mismatch for variable '" + id +
                     "'. Expected " + sym->type + " but got " + exprType);
+                traces.push_back("✗ Type check: '" + id + "' expects " + sym->type + " but got " + exprType);
+            } else {
+                traces.push_back("✓ Type check: '" + id + "' = " + exprType + " ✓");
             }
             symbolTable.markInitialized(id);
         }
-        // build node
+
+        // Build AST node
         CSTNode* astNode = new CSTNode("AssignmentStatement");
         astNode->addChild(new CSTNode(id));
         astNode->addChild(visit(node->children[2]));
@@ -129,25 +137,32 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
         return astNode;
     }
 
+    // Used claude web for tracing optimization.
     if(label == "ID"){
         std::string name = node->children[0]->token.value;
         Symbol* sym = symbolTable.lookup(name);
-        // if not pointing to definition return undeclared
+
         if(sym == nullptr){
+            // Variable referenced before declaration
             errors.push_back("Error: undeclared variable '" + name + "' at (" +
-            std::to_string(node->children[0]->token.line) + "," +
-            std::to_string(node->children[0]->token.column) + ")");
+                std::to_string(node->children[0]->token.line) + "," +
+                std::to_string(node->children[0]->token.column) + ")");
+            traces.push_back("✗ Referenced undeclared variable '" + name + "'");
         } else {
+            // Warn if used before initialization
             if(!sym->isInit){
-                warnings.push_back("WARNING: variable '" + name + "' used without being initialized");
+                warnings.push_back("Warning: variable '" + name + "' used without being initialized");
+                traces.push_back("⚠ '" + name + "' referenced before initialization");
+            } else {
+                traces.push_back("→ Referenced '" + name + "' (" + sym->type + ")");
             }
-            // mark used if used
             symbolTable.markUsed(name);
         }
+
+        // Build AST node
         CSTNode* astNode = new CSTNode("ID");
         astNode->addChild(new CSTNode(name));
         return astNode;
-
     }
 
     if(label == "WhileStatement"){

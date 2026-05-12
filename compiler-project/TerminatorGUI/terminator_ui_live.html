@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C++ TERMINATOR COMPILER — CYBERDYNE SYSTEMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #ff0000;
+    --red-dim: #cc0000;
+    --red-dark: #660000;
+    --red-glow: rgba(255,0,0,0.15);
+    --red-faint: rgba(255,0,0,0.05);
+    --bg: #000000;
+    --bg-panel: rgba(8,0,0,0.85);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+    cursor: crosshair;
+  }
+
+  /* Background canvas */
+  #bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Scanline overlay */
+  #scanlines {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.12) 2px,
+      rgba(0,0,0,0.12) 4px
+    );
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  /* Main content wrapper */
+  #app {
+    position: relative;
+    z-index: 100;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* ── BOOT SCREEN ─────────────────────────────────── */
+  #bootScreen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #000;
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'VT323', monospace;
+  }
+
+  #bootLogo {
+    font-size: 3.5rem;
+    color: var(--red);
+    text-shadow: 0 0 30px var(--red-dim), 0 0 60px var(--red-dark);
+    text-align: center;
+    letter-spacing: 0.12em;
+    line-height: 1.1;
+    margin-bottom: 2rem;
+  }
+
+  #bootLog {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--red-dim);
+    width: 560px;
+    max-width: 90vw;
+    line-height: 1.9;
+    letter-spacing: 0.06em;
+  }
+
+  #bootLog .bl { color: var(--red-dark); }
+  #bootLog .bh { color: var(--red); }
+
+  #bootBar {
+    width: 560px;
+    max-width: 90vw;
+    height: 3px;
+    background: var(--red-dark);
+    margin-top: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #bootBarFill {
+    height: 100%;
+    background: var(--red);
+    box-shadow: 0 0 12px var(--red);
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  #bootPercent {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--red-dark);
+    margin-top: 0.4rem;
+    letter-spacing: 0.1em;
+    text-align: right;
+    width: 560px;
+    max-width: 90vw;
+  }
+
+  /* ── CRT FLICKER ─────────────────────────────────── */
+  @keyframes flicker {
+    0%,100% { opacity: 1; }
+    91% { opacity: 1; }
+    92% { opacity: 0.88; }
+    93% { opacity: 1; }
+    97% { opacity: 0.94; }
+    98% { opacity: 1; }
+  }
+  @keyframes blink { 0%,49%{opacity:1}50%,100%{opacity:0} }
+  @keyframes pulseGlow {
+    0%,100%{box-shadow:0 0 6px var(--red-dark),inset 0 0 6px var(--red-faint)}
+    50%{box-shadow:0 0 18px var(--red-dim),inset 0 0 14px var(--red-glow)}
+  }
+  @keyframes fadeIn { from{opacity:0}to{opacity:1} }
+  @keyframes slideUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+
+  .crt { animation: flicker 7s infinite; }
+
+  /* ── HEADER ──────────────────────────────────────── */
+  .header {
+    padding: 1rem 1.5rem 0.75rem;
+    border-bottom: 1px solid var(--red-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(2px);
+  }
+
+  .header-title {
+    font-family: 'VT323', monospace;
+    font-size: 2.4rem;
+    color: var(--red);
+    text-shadow: 0 0 20px var(--red-dim), 0 0 40px var(--red-dark);
+    letter-spacing: 0.08em;
+    line-height: 1;
+  }
+
+  .header-sub {
+    font-size: 0.65rem;
+    color: var(--red-dark);
+    margin-top: 0.2rem;
+    letter-spacing: 0.18em;
+  }
+
+  .header-status {
+    text-align: right;
+    font-size: 0.65rem;
+    color: var(--red-dark);
+    line-height: 1.9;
+    letter-spacing: 0.08em;
+  }
+
+  .status-live { color: var(--red); animation: blink 1s infinite; }
+
+  /* ── MAIN GRID ───────────────────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+    height: calc(100vh - 88px);
+  }
+
+  .panel {
+    height: 100%;
+    border: 1px solid var(--red-dark);
+    background: var(--bg-panel);
+    backdrop-filter: blur(3px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    animation: pulseGlow 5s ease-in-out infinite;
+  }
+
+  .panel-left { border-right: none; }
+
+  .panel-header {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--red-dark);
+    background: rgba(80,0,0,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .panel-title {
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--red);
+    letter-spacing: 0.15em;
+  }
+
+  .panel-badge { font-size: 0.58rem; color: var(--red-dark); letter-spacing: 0.1em; }
+
+  /* ── EDITOR ──────────────────────────────────────── */
+  .editor-area { flex: 1; padding: 0.75rem; position: relative; }
+
+  textarea {
+    width: 100%; height: 100%;
+    background: transparent;
+    border: none; outline: none;
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    resize: none;
+    caret-color: var(--red);
+    letter-spacing: 0.04em;
+  }
+  textarea::placeholder { color: var(--red-dark); opacity: 0.5; }
+  textarea::-webkit-scrollbar { width: 3px; }
+  textarea::-webkit-scrollbar-thumb { background: var(--red-dark); }
+
+  /* ── CONTROLS ────────────────────────────────────── */
+  .controls {
+    padding: 0.6rem 0.75rem;
+    border-top: 1px solid var(--red-dark);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(40,0,0,0.3);
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--red-dim);
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.35rem 0.8rem;
+    cursor: pointer;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::before {
+    content:'';position:absolute;top:0;left:-100%;
+    width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,0,0,0.12),transparent);
+    transition:left 0.3s;
+  }
+  .btn:hover::before{left:100%;}
+  .btn:hover{background:rgba(255,0,0,0.1);box-shadow:0 0 10px var(--red-dark);border-color:var(--red);}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{border-color:var(--red);box-shadow:0 0 6px var(--red-dark);}
+  .btn-primary:hover{box-shadow:0 0 18px var(--red-dim);}
+
+  .phase-select {
+    background: transparent;
+    border: 1px solid var(--red-dark);
+    color: var(--red-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.35rem 0.4rem;
+    outline: none;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+  }
+  .phase-select option { background: #0a0000; color: var(--red); }
+
+  /* ── OUTPUT ──────────────────────────────────────── */
+  .output-area {
+    flex: 1;
+    overflow-y: scroll;  /* change auto to scroll */
+    min-height: 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    letter-spacing: 0.03em;
+    position: relative;
+    z-index: 20;          /* add this */
+  }
+  .output-area::-webkit-scrollbar{width:3px;}
+  .output-area::-webkit-scrollbar-thumb{background:var(--red-dark);}
+
+  .output-line {
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-all;
+    animation: slideUp 0.12s ease-out forwards;
+  }
+
+  .line-ok    { color: var(--red); }
+  .line-err   { color: #ff4444; text-shadow: 0 0 6px rgba(255,68,68,0.4); }
+  .line-warn  { color: #ff6600; }
+  .line-trace { color: var(--red-dark); }
+  .line-phase {
+    color: var(--red);
+    font-family: 'VT323', monospace;
+    font-size: 1.05rem;
+    letter-spacing: 0.2em;
+    margin-top: 0.4rem;
+    text-shadow: 0 0 8px var(--red-dim);
+  }
+  .line-header {
+    color: var(--red-dark);
+    border-top: 1px solid var(--red-dark);
+    margin: 0.4rem 0 0.2rem;
+    padding-top: 0.2rem;
+  }
+  .line-hex   { color: var(--red-dark); font-size: 0.74rem; }
+  .line-hex span { color: #cc2200; }
+  .line-java  { color: #bb3333; }
+  .line-dim   { color: var(--red-dark); }
+
+  .cursor-blink {
+    display: inline-block;
+    width: 7px; height: 13px;
+    background: var(--red);
+    animation: blink 0.8s infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+
+  /* ── METRICS ─────────────────────────────────────── */
+  .metrics {
+    padding: 0.4rem 0.75rem;
+    border-top: 1px solid var(--red-dark);
+    display: flex;
+    gap: 1rem;
+    font-size: 0.6rem;
+    color: var(--red-dark);
+    letter-spacing: 0.08em;
+    background: rgba(30,0,0,0.4);
+    flex-wrap: wrap;
+  }
+  .metric-val { color: var(--red-dim); }
+
+  /* ── PROGRESS ────────────────────────────────────── */
+  .progress-bar { height: 2px; background: var(--red-dark); position: relative; overflow: hidden; }
+  .progress-fill {
+    height: 100%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+    width: 0%;
+    transition: width 0.25s ease;
+  }
+
+  /* ── BOTTOM BAR ──────────────────────────────────── */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 0.35rem 1.5rem;
+    border-top: 1px solid var(--red-dark);
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.58rem;
+    color: var(--red-dark);
+    letter-spacing: 0.1em;
+    z-index: 100;
+  }
+
+  /* ── TARGETING RETICLE ───────────────────────────── */
+  .reticle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 5;
+    transition: all 0.4s ease;
+  }
+  .reticle-ring {
+    width: 60px; height: 60px;
+    border: 1px solid rgba(255,0,0,0.3);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    animation: blink 1.5s infinite;
+  }
+  .reticle-cross-h {
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 1px;
+    background: rgba(255,0,0,0.2);
+    transform: translateY(-50%);
+  }
+  .reticle-cross-v {
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(255,0,0,0.2);
+    transform: translateX(-50%);
+  }
+  .reticle-label {
+    position: absolute;
+    top: calc(50% + 36px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.55rem;
+    color: rgba(255,0,0,0.4);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- Background canvas for Terminator vision effects -->
+<canvas id="bgCanvas"></canvas>
+<div id="scanlines"></div>
+
+<!-- Targeting reticles -->
+<div class="reticle" id="reticle1">
+  <div class="reticle-ring"></div>
+  <div class="reticle-cross-h"></div>
+  <div class="reticle-cross-v"></div>
+  <div class="reticle-label">TARGET ACQUIRED</div>
+</div>
+<div class="reticle" id="reticle2">
+  <div class="reticle-ring" style="width:40px;height:40px;border-color:rgba(255,0,0,0.2)"></div>
+  <div class="reticle-cross-h"></div>
+  <div class="reticle-cross-v"></div>
+  <div class="reticle-label">SCANNING...</div>
+</div>
+
+<!-- Boot Screen -->
+<div id="bootScreen">
+  <div id="bootLogo">
+    C++ TERMINATOR<br>COMPILER
+  </div>
+  <div id="bootLog"></div>
+  <div id="bootBar"><div id="bootBarFill"></div></div>
+  <div id="bootPercent">0%</div>
+</div>
+
+<!-- Main App -->
+<div id="app" class="crt" style="display:none">
+
+  <div class="header">
+    <div>
+      <div class="header-title">C++ TERMINATOR COMPILER</div>
+      <div class="header-sub">CYBERDYNE SYSTEMS MODEL 101 // CMPT-432 // MARIST COLLEGE</div>
+    </div>
+    <div class="header-status">
+      SYSTEM STATUS: <span class="status-live">ONLINE</span><br>
+      TARGET: 6502a / SvegOS + JVM<br>
+      BUILD: 2026.05.11<br>
+      OPERATOR: A.WITTMANN
+    </div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+  <div class="main-grid">
+
+    <!-- Left: Input -->
+    <div class="panel panel-left">
+      <div class="panel-header">
+        <span class="panel-title">SOURCE INPUT</span>
+        <span class="panel-badge">ALAN LANG v1.0</span>
+      </div>
+      <div class="editor-area">
+        <textarea id="sourceInput" spellcheck="false" placeholder="{ // alan source&#10;    int x&#10;    x = 3 + 4&#10;    print(x)&#10;}&#10;$"></textarea>
+      </div>
+      <div class="controls">
+        <select class="phase-select" id="phaseSelect">
+          <option value="all">ALL PHASES</option>
+          <option value="lex">LEXER ONLY</option>
+          <option value="parse">PARSE ONLY</option>
+          <option value="sem">SEMANTIC ONLY</option>
+          <option value="codegen">CODEGEN ONLY</option>
+        </select>
+        <button class="btn btn-primary" onclick="runCompiler()">[ EXECUTE ]</button>
+        <button class="btn" onclick="clearOutput()">[ CLEAR ]</button>
+        <button class="btn" onclick="loadExample()">[ EXAMPLE ]</button>
+      </div>
+      <div class="metrics">
+        <span>PHASE: <span class="metric-val" id="metPhase">IDLE</span></span>
+        <span>LINES: <span class="metric-val" id="metLines">--</span></span>
+        <span>ERRORS: <span class="metric-val" id="metErrors">--</span></span>
+        <span>WARNINGS: <span class="metric-val" id="metWarnings">--</span></span>
+        <span>STATUS: <span class="metric-val" id="metStatus">--</span></span>
+      </div>
+    </div>
+
+    <!-- Right: Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">COMPILER OUTPUT</span>
+        <span class="panel-badge">REAL-TIME TRACE</span>
+      </div>
+      <div class="output-area" id="outputArea">
+        <span class="output-line line-dim">// C++ TERMINATOR COMPILER READY</span>
+        <span class="output-line line-dim">// ENTER SOURCE — PRESS EXECUTE</span>
+        <span class="output-line line-dim">// ─────────────────────────────────</span>
+        <span class="cursor-blink"></span>
+      </div>
+      <div class="metrics">
+        <span>PHASE: <span class="metric-val" id="metPhase">IDLE</span></span>
+        <span>6502B: <span class="metric-val" id="metBytes">--</span></span>
+        <span>VARS: <span class="metric-val" id="metVars">--</span></span>
+        <span>HEAP: <span class="metric-val" id="metHeap">--</span></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-bar">
+    <span>C++ TERMINATOR COMPILER // WITTMANN A. // CMPT-432 // SPRING 2026</span>
+    <span id="clock">--:--:--</span>
+    <span>PROF. LABOUSEUR // MARIST COLLEGE</span>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  BACKGROUND: Terminator Vision Canvas
+// ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Hex rain columns
+const COLS = Math.floor(window.innerWidth / 14);
+const drops = Array.from({length: COLS}, () => Math.random() * -100);
+const chars = '0123456789ABCDEF01001011010110100101';
+
+function drawBg() {
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = '12px Share Tech Mono, monospace';
+
+  for (let i = 0; i < drops.length; i++) {
+    const bright = Math.random() > 0.95;
+    ctx.fillStyle = bright ? 'rgba(255,0,0,0.9)' : 'rgba(120,0,0,0.35)';
+    const ch = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillText(ch, i * 14, drops[i] * 14);
+
+    if (drops[i] * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i] += 0.4 + Math.random() * 0.3;
+  }
+
+  // Occasional horizontal scan lines
+  if (Math.random() > 0.97) {
+    const y = Math.random() * canvas.height;
+    ctx.fillStyle = 'rgba(255,0,0,0.04)';
+    ctx.fillRect(0, y, canvas.width, 1 + Math.random() * 3);
+  }
+
+  // Ambient red glow patches
+  if (Math.random() > 0.98) {
+    const gx = Math.random() * canvas.width;
+    const gy = Math.random() * canvas.height;
+    const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, 80 + Math.random() * 120);
+    gr.addColorStop(0, 'rgba(255,0,0,0.04)');
+    gr.addColorStop(1, 'transparent');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+setInterval(drawBg, 40);
+
+// ─────────────────────────────────────────────────────────────
+//  TARGETING RETICLES
+// ─────────────────────────────────────────────────────────────
+function moveReticle(el, labels) {
+  const x = 80 + Math.random() * (window.innerWidth - 160);
+  const y = 80 + Math.random() * (window.innerHeight - 160);
+  el.style.left = (x - 30) + 'px';
+  el.style.top  = (y - 30) + 'px';
+  const lbl = el.querySelector('.reticle-label');
+  lbl.textContent = labels[Math.floor(Math.random() * labels.length)];
+}
+
+const r1Labels = ['TARGET ACQUIRED','THREAT DETECTED','TRACKING...','LOCKED ON','ANALYZING'];
+const r2Labels = ['SCANNING...','PROCESSING','EVALUATING','ARMED','STANDBY'];
+
+setInterval(() => moveReticle(document.getElementById('reticle1'), r1Labels), 3200);
+setInterval(() => moveReticle(document.getElementById('reticle2'), r2Labels), 2100);
+
+moveReticle(document.getElementById('reticle1'), r1Labels);
+moveReticle(document.getElementById('reticle2'), r2Labels);
+
+// ─────────────────────────────────────────────────────────────
+//  BOOT SEQUENCE
+// ─────────────────────────────────────────────────────────────
+const bootLines = [
+  {text: 'CYBERDYNE SYSTEMS CORPORATION', cls: 'bh', delay: 300},
+  {text: 'MODEL 101 NEURAL NET PROCESSOR — LEARNING COMPUTER', cls: '', delay: 200},
+  {text: '', cls: '', delay: 100},
+  {text: 'INITIALIZING C++ COMPILER CORE...', cls: 'bh', delay: 250},
+  {text: 'LOADING LEXER MODULE.............................. OK', cls: '', delay: 180},
+  {text: 'LOADING RECURSIVE DESCENT PARSER.................. OK', cls: '', delay: 180},
+  {text: 'LOADING SEMANTIC ANALYZER......................... OK', cls: '', delay: 180},
+  {text: 'LOADING AST OPTIMIZER............................. OK', cls: '', delay: 180},
+  {text: 'LOADING 6502a CODE GENERATOR...................... OK', cls: '', delay: 180},
+  {text: 'LOADING JAVA SOURCE GENERATOR..................... OK', cls: '', delay: 180},
+  {text: '', cls: '', delay: 100},
+  {text: 'TARGET PLATFORM: SvegOS / JVM', cls: '', delay: 150},
+  {text: 'OPERATOR: WITTMANN, ADAM — CMPT 432', cls: '', delay: 150},
+  {text: 'CLASSIFICATION: EDUCATIONAL / UNRESTRICTED', cls: '', delay: 150},
+  {text: '', cls: '', delay: 100},
+  {text: 'ALL SYSTEMS NOMINAL — COMPILER READY', cls: 'bh', delay: 200},
+];
+
+async function streamOutput(stdout, stderr){
+    const selectedPhase = document.getElementById('phaseSelect').value;
+    const lines = [];
+    if(stdout) lines.push(...stdout.split('\n'));
+    if(stderr) lines.push(...stderr.split('\n').map(l=>'STDERR: '+l));
+
+    let lineCount=0, errors=0, warnings=0;
+    let progress=0;
+    let currentPhase='';
+
+    for(const raw of lines){
+        if(!raw.trim()) continue;
+
+        // Track which phase we're in
+        if(raw.includes('[ LEXER ]'))           currentPhase='lex';
+        else if(raw.includes('[ PARSER ]'))     currentPhase='parse';
+        else if(raw.includes('[ SEMANTIC'))     currentPhase='sem';
+        else if(raw.includes('[ OPTIMIZER'))    currentPhase='opt';
+        else if(raw.includes('[ SYMBOL'))       currentPhase='sym';
+        else if(raw.includes('[ JAVA'))         currentPhase='java';
+        else if(raw.includes('[ CODE')||raw.includes('[ 6502')) currentPhase='codegen';
+
+        // Filter by selected phase — always show headers and errors
+        if(selectedPhase !== 'all' && currentPhase !== selectedPhase){
+            const isHeader = raw.includes('COMPILING PROGRAM') || raw.startsWith('+') || raw.startsWith('|');
+            const isError  = raw.includes('ERR') || raw.includes('FATAL');
+            if(!isHeader && !isError){ await sleep(2); continue; }
+        }
+
+        await sleep(8);
+        lineCount++;
+        document.getElementById('metLines').textContent = lineCount;
+
+        // Classify line for styling
+        let cls = 'raw';
+        if(raw.includes('[ LEXER ]')||raw.includes('[ PARSER ]')||raw.includes('[ SEMANTIC')||
+           raw.includes('[ OPTIMIZER')||raw.includes('[ CODE')||raw.includes('[ SYMBOL')||raw.includes('[ JAVA')){
+            cls='phase'; progress=Math.min(progress+12,95);
+            document.getElementById('progress').style.width=progress+'%';
+            document.getElementById('metPhase').textContent=raw.replace(/[\[\]]/g,'').trim().split(' ')[0];
+        }
+        else if(raw.includes('  OK ')||raw.includes('OK  '))  cls='ok';
+        else if(raw.includes('  ERR')||raw.includes('STDERR:')||raw.startsWith('  ✗')){ cls='err'; errors++; document.getElementById('metErrors').textContent=errors; }
+        else if(raw.includes('  /!\\')||raw.includes('WARNING')||raw.includes('Warning')){ cls='warn'; warnings++; document.getElementById('metWarnings').textContent=warnings; }
+        else if(raw.includes('  -->')||raw.includes('DEBUG')||raw.startsWith('  →')) cls='trace';
+        else if(raw.includes('|')&&/^[0-9A-F]{2} \|/.test(raw.trim())) cls='hex';
+        else if(raw.includes('System.out')||raw.includes('public class')||raw.includes('public static')) cls='java';
+        else if(raw.startsWith('+')||raw.startsWith('|')) cls='header';
+        else cls='raw';
+
+        appendLine(raw, cls);
+    }
+
+    document.getElementById('progress').style.width='100%';
+    document.getElementById('metStatus').textContent=errors>0?'FAILED':'COMPLETE';
+}
+
+async function runBoot() {
+  const log = document.getElementById('bootLog');
+  const bar = document.getElementById('bootBarFill');
+  const pct = document.getElementById('bootPercent');
+  let progress = 0;
+
+  for (let i = 0; i < bootLines.length; i++) {
+    await sleep(bootLines[i].delay);
+    const span = document.createElement('span');
+    span.className = bootLines[i].cls || '';
+    span.textContent = bootLines[i].text;
+    span.style.display = 'block';
+    log.appendChild(span);
+    log.scrollTop = log.scrollHeight;
+    progress = Math.round((i / bootLines.length) * 100);
+    bar.style.width = progress + '%';
+    pct.textContent = progress + '%';
+  }
+
+  await sleep(200);
+  bar.style.width = '100%';
+  pct.textContent = '100%';
+  await sleep(600);
+
+  // Fade out boot screen
+  const boot = document.getElementById('bootScreen');
+  boot.style.transition = 'opacity 0.6s';
+  boot.style.opacity = '0';
+  await sleep(600);
+  boot.style.display = 'none';
+
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('sourceInput').value = examples[0];
+}
+
+// ─────────────────────────────────────────────────────────────
+//  COMPILER UI LOGIC
+// ─────────────────────────────────────────────────────────────
+const examples = [
+`{
+    int x
+    string s
+    boolean b
+    x = 3 + 4
+    s = "hello"
+    b = true
+    print(x)
+    print(s)
+    print(b)
+}
+$`,
+`{
+    int a
+    a = 0
+    while (a != 5) {
+        print(a)
+        a = 1 + a
+    }
+}
+$`,
+`{
+    boolean b
+    int x
+    b = true
+    x = 0
+    if (b == true) {
+        x = 9
+        print(x)
+    }
+}
+$`
+];
+
+let exampleIdx = 0;
+let isRunning = false;
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function loadExample() {
+  document.getElementById('sourceInput').value = examples[exampleIdx % examples.length];
+  exampleIdx++;
+}
+
+function clearOutput() {
+  const out = document.getElementById('outputArea');
+  out.innerHTML = '<span class="output-line line-dim">// OUTPUT CLEARED</span><span class="cursor-blink"></span>';
+  resetMetrics();
+}
+
+function resetMetrics() {
+    const ids = ['metErrors','metWarnings','metPhase','metLines','metStatus'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.textContent = id === 'metPhase' ? 'IDLE' : '--';
+    });
+    document.getElementById('progress').style.width = '0%';
+}
+
+async function appendLine(text, cls) {
+  const out = document.getElementById('outputArea');
+  const cursor = out.querySelector('.cursor-blink');
+  if (cursor) cursor.remove();
+
+  const line = document.createElement('span');
+  line.className = `output-line line-${cls}`;
+
+  if (cls === 'hex') {
+    const parts = text.split('|');
+    if (parts.length === 2) {
+      line.innerHTML = `<span style="color:var(--red-dark)">${parts[0]}|</span><span style="color:#cc2200">${parts[1]}</span>`;
+    } else {
+      line.textContent = text;
+    }
+  } else {
+    line.textContent = text;
+  }
+
+  out.appendChild(line);
+  const newCursor = document.createElement('span');
+  newCursor.className = 'cursor-blink';
+  out.appendChild(newCursor);
+  out.scrollTop = out.scrollHeight;
+  setTimeout(() => { out.scrollTop = out.scrollHeight; }, 0);
+}
+
+function setPhase(name, pct) {
+  document.getElementById('metPhase').textContent = name;
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+async function runCompiler(){
+    if(isRunning)return;
+    isRunning=true;
+    const source=document.getElementById('sourceInput').value.trim();
+   
+
+    if(!source){ appendLine('ERR: NO SOURCE INPUT','err'); isRunning=false; return; }
+    clearOutput();
+    appendLine('// SENDING TO C++ COMPILER...','dim');
+    await sleep(100);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch('http://localhost:5000/compile', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({source}),
+          signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if(!response.ok) throw new Error('Server error: '+response.status);
+      const data = await response.json();
+      if(data.error){ appendLine('ERR: '+data.error,'err'); isRunning=false; return; }
+      await streamOutput(data.stdout, data.returncode!==0?data.stderr:'');
+  } catch(e) {
+      clearTimeout(timeout);
+      appendLine('ERR: '+e.message,'err');
+      appendLine('// Start the server: python server.py','dim');
+  }
+  isRunning=false;
+}
+
+async function streamOutput(stdout, stderr){
+    const selectedPhase=document.getElementById('phaseSelect').value;
+    const lines=[];
+    if(stdout)lines.push(...stdout.split('\n'));
+    if(stderr)lines.push(...stderr.split('\n').map(l=>'STDERR: '+l));
+    let lineCount=0,errors=0,warnings=0,progress=0,currentPhase='';
+    for(const raw of lines){
+        if(!raw.trim())continue;
+        if(raw.includes('[ LEXER ]'))          currentPhase='lex';
+        else if(raw.includes('[ PARSER ]'))    currentPhase='parse';
+        else if(raw.includes('[ SEMANTIC'))    currentPhase='sem';
+        else if(raw.includes('[ OPTIMIZER'))   currentPhase='opt';
+        else if(raw.includes('[ SYMBOL'))      currentPhase='sym';
+        else if(raw.includes('[ JAVA'))        currentPhase='java';
+        else if(raw.includes('[ CODE')||raw.includes('[ 6502')) currentPhase='codegen';
+        if(selectedPhase!=='all'&&currentPhase!==selectedPhase){
+            const isHeader=raw.includes('COMPILING PROGRAM')||raw.startsWith('+')||raw.startsWith('|');
+            const isError=raw.includes('ERR')||raw.includes('FATAL');
+            if(!isHeader&&!isError){await sleep(2);continue;}
+        }
+        await sleep(8);
+        lineCount++;
+        document.getElementById('metLines').textContent=lineCount;
+        let cls='raw';
+        if(raw.includes('[ LEXER ]')||raw.includes('[ PARSER ]')||raw.includes('[ SEMANTIC')||
+           raw.includes('[ OPTIMIZER')||raw.includes('[ CODE')||raw.includes('[ SYMBOL')||raw.includes('[ JAVA')){
+            cls='phase';progress=Math.min(progress+12,95);
+            document.getElementById('progress').style.width=progress+'%';
+            document.getElementById('metPhase').textContent=raw.replace(/[\[\]]/g,'').trim().split(' ')[0];
+        }
+        else if(raw.includes('OK '))  cls='ok';
+        else if(raw.includes('ERR')||raw.includes('STDERR:')){cls='err';errors++;document.getElementById('metErrors').textContent=errors;}
+        else if(raw.includes('/!\\')||raw.includes('WARNING')||raw.includes('Warning')){cls='warn';warnings++;document.getElementById('metWarnings').textContent=warnings;}
+        else if(raw.includes('-->')||raw.includes('DEBUG')) cls='trace';
+        else if(/^[0-9A-F]{2} \|/.test(raw.trim())) cls='hex';
+        else if(raw.includes('System.out')||raw.includes('public class')) cls='java';
+        else if(raw.startsWith('+')||raw.startsWith('|')) cls='header';
+        appendLine(raw,cls);
+    }
+    document.getElementById('progress').style.width='100%';
+    document.getElementById('metStatus').textContent=errors>0?'FAILED':'COMPLETE';
+}
+// Clock
+setInterval(()=>{
+  document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8);
+},1000);
+
+// Start boot sequence
+runBoot();
+</script>
+</body>
+</html>
