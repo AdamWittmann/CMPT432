@@ -8,7 +8,7 @@ public class AlanProgram1 {
         b = true;
         while ((x != 5)) {
             System.out.println(x);
-            x = 1;
+            x = 1 + x;
         }
         if ((b == true)) {
             System.out.println(s);
