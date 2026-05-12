@@ -1,12 +1,12 @@
 # Alan Compiler
 
-A complete four-phase compiler for the Alan language written in C++, targeting 6502a machine code that executes on SvegOS. Built for CMPT 432 at Marist College.
+A complete multi-phase compiler for the Alan language written in C++, targeting 6502a machine code that executes on SvegOS, with additional Java source code generation. Built for CMPT 432 at Marist College.
 
 ---
 
 ## Overview
 
-The Alan language is a small, strongly-typed language with integer, string, and boolean types, lexical scoping, while loops, if statements, and print output. This compiler takes Alan source code and produces a 256-byte executable image conforming to the 6502a instruction set.
+The Alan language is a small, strongly-typed language with integer, string, and boolean types, lexical scoping, while loops, if statements, and print output. This compiler takes Alan source code through lexing, parsing, semantic analysis, optimization, and code generation — producing both a 256-byte 6502a executable image and readable Java source code.
 
 ---
 
@@ -16,19 +16,23 @@ The Alan language is a small, strongly-typed language with integer, string, and 
 source.alan
     |
     v
-[ Lexer ]           Tokenizes source, handles comments, reports errors/warnings
+[ Lexer ]              Tokenizes source, auto-fixes recoverable errors
     |
     v tokens
-[ Parser ]          Recursive descent LL(1), builds Concrete Syntax Tree (CST)
+[ Parser ]             Recursive descent LL(1), builds Concrete Syntax Tree (CST)
     |
     v CST
 [ Semantic Analyzer ]  Builds AST, scope checks, type checks, symbol table
     |
     v AST
-[ Code Generator ]  Emits 6502a machine code, backpatches addresses and jumps
+[ Optimizer ]          Constant folding on integer expressions
+    |
+    v optimized AST
+[ Java Generator ]     Emits readable Java source code (.java)
+[ Code Generator ]     Emits 6502a machine code, backpatches addresses and jumps
     |
     v
-256-byte executable image
+256-byte executable image + AlanProgramN.java
 ```
 
 ---
@@ -36,21 +40,21 @@ source.alan
 ## Language Grammar
 
 ```
-Program            ::= Block $
-Block              ::= { StatementList }
-StatementList      ::= Statement StatementList | epsilon
-Statement          ::= PrintStatement | AssignmentStatement | VarDecl
-                     | WhileStatement | IfStatement | Block
-PrintStatement     ::= print ( Expr )
+Program             ::= Block $
+Block               ::= { StatementList }
+StatementList       ::= Statement StatementList | epsilon
+Statement           ::= PrintStatement | AssignmentStatement | VarDecl
+                      | WhileStatement | IfStatement | Block
+PrintStatement      ::= print ( Expr )
 AssignmentStatement ::= Id = Expr
-VarDecl            ::= type Id
-WhileStatement     ::= while BooleanExpr Block
-IfStatement        ::= if BooleanExpr Block
-Expr               ::= IntExpr | StringExpr | BooleanExpr | Id
-IntExpr            ::= digit intop Expr | digit
-StringExpr         ::= " CharList "
-BooleanExpr        ::= ( Expr boolop Expr ) | boolval
-Id                 ::= char
+VarDecl             ::= type Id
+WhileStatement      ::= while BooleanExpr Block
+IfStatement         ::= if BooleanExpr Block
+Expr                ::= IntExpr | StringExpr | BooleanExpr | Id
+IntExpr             ::= digit intop Expr | digit
+StringExpr          ::= " CharList "
+BooleanExpr         ::= ( Expr boolop Expr ) | boolval
+Id                  ::= char
 
 type    ::= int | string | boolean
 digit   ::= 0-9
@@ -86,11 +90,61 @@ Example:
 ./compiler tests/test-valid-simple.txt
 ```
 
-The compiler runs all four phases and prints a lex token trace, CST, semantic analysis results, symbol table, and the final 256-byte hex image.
+The compiler runs all phases and prints a lex token trace, CST, semantic analysis traces, symbol table, optimizer traces, Java source, and the final 256-byte hex image.
 
 ---
 
-## Output Format
+## Error Recovery
+
+The lexer automatically fixes certain recoverable errors instead of halting:
+
+| Issue | Fix Applied | Severity |
+|---|---|---|
+| Unterminated string `"hello` | Inserts closing `"` | Warning |
+| Unterminated comment `/* ...` | Closes comment | Warning |
+| Missing `$` at end of program | Inserts `$` token | Warning |
+| Lone `!` without `=` | Reports error | Error |
+| Multi-digit integer `42` | Reports error | Error |
+
+---
+
+## Optimization — Constant Folding
+
+The optimizer evaluates integer expressions at compile time when all operands are literals. This reduces runtime computation and simplifies generated code.
+
+```
+3 + 4  -->  7     (folded at compile time)
+1 + 2 + 3  -->  6
+3 + a  -->  not folded (variable operand)
+```
+
+Fold traces are printed in verbose output under `[ OPTIMIZER ]`.
+
+---
+
+## Java Source Code Generation
+
+Each program generates a valid `.java` file in `JavaCode/` that can be compiled and run on the JVM.
+
+```bash
+javac JavaCode/AlanProgram1.java
+java -cp JavaCode AlanProgram1
+```
+
+Alan to Java type mapping:
+
+| Alan | Java |
+|---|---|
+| `int` | `int` |
+| `string` | `String` |
+| `boolean` | `boolean` |
+| `print(x)` | `System.out.println(x)` |
+| `while` | `while` |
+| `if` | `if` |
+
+---
+
+## 6502a Output Format
 
 ```
 00 | A9 05 8D 06 00 00 00 00
@@ -136,23 +190,24 @@ Syscall codes: `0x01` = print int, `0x02` = print string, `0x03` = print boolean
 - Undeclared variable
 - Redeclared variable in same scope
 - Type mismatch
-- Unterminated string or comment
 - Unrecognized character
+- Multi-digit integer
 
 **Warnings** allow compilation to continue:
 - Variable declared but never used
 - Variable declared but never initialized
-- Missing `$` end-of-program marker
-- Multi-digit integer (only single digits are supported)
+- Missing `$` end-of-program marker (auto-fixed)
+- Unterminated string (auto-fixed)
+- Unterminated comment (auto-fixed)
 
 ---
 
 ## Testing
 
 ```bash
-make test                                    # run full suite
+make test                                       # run full suite
 make test-one FILE=tests/test-valid-simple.txt  # run one test
-make test-verbose                            # all tests with full output
+make test-verbose                               # all tests with full output
 ```
 
 Test file naming conventions:
@@ -173,8 +228,11 @@ compiler-project/
 ├── token.h / token.cpp
 ├── semantic_analyzer.h / semantic_analyzer.cpp
 ├── symbol_table.h / symbol_table.cpp
+├── optimizer.h / optimizer.cpp
 ├── code_generator.h / code_generator.cpp
+├── java_generator.h / java_generator.cpp
 ├── Makefile
+├── JavaCode/               Generated Java source files
 └── tests/
     ├── run_tests.sh
     └── test-*.txt
