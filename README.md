@@ -1,6 +1,12 @@
-# Alan Compiler
+# C++ Terminator Compiler
 
-A complete multi-phase compiler for the Alan language written in C++, targeting 6502a machine code that executes on SvegOS, with additional Java source code generation. Built for CMPT 432 at Marist College.
+A complete multi-phase compiler for the Alan language written in C++, targeting 6502a machine code that executes on SvegOS, with additional Java source code generation and an interactive Terminator-themed web UI. Built for CMPT 432 at Marist College.
+
+---
+
+## Demo
+
+*Coming soon — recording in progress.*
 
 ---
 
@@ -66,7 +72,7 @@ intop   ::= +
 
 ---
 
-## Building
+## Building the Compiler
 
 Requires a C++17 compiler.
 
@@ -78,7 +84,7 @@ Produces a `./compiler` binary.
 
 ---
 
-## Usage
+## Command Line Usage
 
 ```bash
 ./compiler <source_file>
@@ -91,6 +97,50 @@ Example:
 ```
 
 The compiler runs all phases and prints a lex token trace, CST, semantic analysis traces, symbol table, optimizer traces, Java source, and the final 256-byte hex image.
+
+---
+
+## Terminator Web UI
+
+An interactive browser-based UI with a Terminator vision aesthetic — red-on-black with CRT scanlines, hex rain background, targeting reticles, and a boot sequence. Connects to the real C++ compiler via a Flask backend.
+
+### Setup
+
+**1. Build the compiler**
+```bash
+make
+```
+
+**2. Create and activate a virtual environment**
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+**3. Install dependencies**
+```bash
+pip install flask flask-cors
+```
+
+**4. Start the backend server**
+```bash
+cd TerminatorGUI
+python server.py
+```
+
+**5. Open the UI**
+
+Navigate to `http://localhost:5000` in your browser.
+
+### Features
+
+- Full boot sequence on load
+- Real-time streaming of compiler output
+- Phase filtering — view output from a single phase
+- Live metrics — tokens, errors, warnings, optimizations
+- 256-byte hex image display
+- Java source display
+- Targeting reticles and hex rain background
 
 ---
 
@@ -110,15 +160,13 @@ The lexer automatically fixes certain recoverable errors instead of halting:
 
 ## Optimization — Constant Folding
 
-The optimizer evaluates integer expressions at compile time when all operands are literals. This reduces runtime computation and simplifies generated code.
+The optimizer evaluates integer expressions at compile time when all operands are literals.
 
 ```
-3 + 4  -->  7     (folded at compile time)
+3 + 4      -->  7     (folded at compile time)
 1 + 2 + 3  -->  6
-3 + a  -->  not folded (variable operand)
+3 + a      -->  not folded (variable operand)
 ```
-
-Fold traces are printed in verbose output under `[ OPTIMIZER ]`.
 
 ---
 
@@ -139,8 +187,6 @@ Alan to Java type mapping:
 | `string` | `String` |
 | `boolean` | `boolean` |
 | `print(x)` | `System.out.println(x)` |
-| `while` | `while` |
-| `if` | `if` |
 
 ---
 
@@ -232,7 +278,11 @@ compiler-project/
 ├── code_generator.h / code_generator.cpp
 ├── java_generator.h / java_generator.cpp
 ├── Makefile
-├── JavaCode/               Generated Java source files
+├── JavaCode/                  Generated Java source files
+├── TerminatorGUI/
+│   ├── server.py              Flask backend
+│   ├── terminator_ui.html     Standalone JS demo
+│   └── terminator_ui_live.html Real C++ backend UI
 └── tests/
     ├── run_tests.sh
     └── test-*.txt
