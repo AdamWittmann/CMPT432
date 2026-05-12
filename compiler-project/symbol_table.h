@@ -38,6 +38,9 @@ class SymbolTable{
 
         void printSymbolTable(int programNum);
 
+        // For optimization-- tracing
+        int getScope() const { return currentScope; };
+
     private:
         std::vector<std::map<std::string, Symbol>> scopeStack;
         std::vector<Symbol> allSymbols;

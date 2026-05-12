@@ -20,7 +20,7 @@ class SemanticAnalyzer {
         std::vector<std::string> errors;
         std::vector<std::string> warnings;
         SymbolTable symbolTable;
-
+        std::vector<std::string> traces;
 
         private:
             CSTNode* cst;
