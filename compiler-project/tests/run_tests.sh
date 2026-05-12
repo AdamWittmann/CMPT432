@@ -58,7 +58,7 @@ done
 
 echo ""
 echo "==================================="
-echo "Results: ${GREEN}${PASSED} passed${NC}, ${RED}${FAILED} failed${NC}"
+echo -e "Results: ${GREEN}${PASSED} passed${NC}, ${RED}${FAILED} failed${NC}"
 echo "==================================="
 
 exit $FAILED
