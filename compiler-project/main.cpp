@@ -8,6 +8,7 @@
 #include "semantic_analyzer.h"
 #include "code_generator.h"
 #include "optimizer.h"
+#include "java_generator.h"
 
 // ─────────────────────────────────────────────────────────────
 //  Changelog
@@ -171,6 +172,13 @@ int main(int argc, char* argv[]){
             return 1;
         }
         printOk("Semantic analysis passed with " + std::to_string(analyzer.warnings.size()) + " warning(s)");
+
+        // ── Symbol Table ──────────────────────────────────────
+        if(verbose){
+            printPhase("SYMBOL TABLE");
+            analyzer.symbolTable.printSymbolTable(programNum);
+        }
+
         // ── Optimizer Phase ───────────────────────────────────────
         printPhase("OPTIMIZER");
 
@@ -189,12 +197,37 @@ int main(int argc, char* argv[]){
         } else {
             printOk("Constant folding applied " + std::to_string(optimizer.traces.size()) + " optimization(s)");
         }
-        // ── Symbol Table ──────────────────────────────────────
-        if(verbose){
-            printPhase("SYMBOL TABLE");
-            analyzer.symbolTable.printSymbolTable(programNum);
-        }
+        // ── Java Generation Phase ─────────────────────────────────
+        printPhase("JAVA GENERATION");
 
+        JavaGenerator javaGen(optimizedAst, programNum);
+        std::string javaSource = javaGen.generate();
+
+        if(javaGen.errors.empty()){
+            // Print generated source
+            printOk("Java source generated successfully");
+            printDivider();
+            std::cout << javaSource;
+            printDivider();
+            
+            // Write to file
+            system("mkdir -p JavaCode");
+            std::string javaFilename = "JavaCode/AlanProgram" + std::to_string(programNum) + ".java";
+            std::ofstream javaFile(javaFilename);
+            javaFile << javaSource;
+            javaFile.close();
+            printOk("Written to " + javaFilename);
+            
+            if(verbose){
+                for(const std::string& trace : javaGen.traces){
+                    printTrace(trace);
+                }
+            }
+        } else {
+            for(const std::string& err : javaGen.errors){
+                printErr(err);
+            }
+        }
         // ── Code Generation Phase ─────────────────────────────
         printPhase("CODE GENERATION");
 

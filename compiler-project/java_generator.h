@@ -1,4 +1,3 @@
-
 #ifndef JAVA_GENERATOR_H
 #define JAVA_GENERATOR_H
 

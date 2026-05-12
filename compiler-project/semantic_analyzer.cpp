@@ -137,6 +137,7 @@ CSTNode* SemanticAnalyzer::visit(CSTNode* node){
         return astNode;
     }
 
+    // Used claude web for tracing optimization.
     if(label == "ID"){
         std::string name = node->children[0]->token.value;
         Symbol* sym = symbolTable.lookup(name);

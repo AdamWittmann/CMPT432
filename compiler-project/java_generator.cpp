@@ -139,7 +139,7 @@ std::string JavaGenerator::genStringExpr(CSTNode* node){
 
 std::string JavaGenerator::genBooleanExpr(CSTNode* node){
     if(node->children.size() == 1){
-        return node->children[0]->label; // BOOL
+        return node->children[0]->token.value; // returns true or false
     } else {
         std::string left = genExpr(node->children[0]);
         std::string op = (node->children[1]->label == "DOUBLE_EQUALS") ? "==" : "!=";

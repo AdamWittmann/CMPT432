@@ -20,6 +20,8 @@ class SemanticAnalyzer {
         std::vector<std::string> errors;
         std::vector<std::string> warnings;
         SymbolTable symbolTable;
+
+        // Optimization-- tracing
         std::vector<std::string> traces;
 
         private:
