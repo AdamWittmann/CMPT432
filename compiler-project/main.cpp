@@ -7,6 +7,7 @@
 #include "cst_node.h"
 #include "semantic_analyzer.h"
 #include "code_generator.h"
+#include "optimizer.h"
 
 // ─────────────────────────────────────────────────────────────
 //  Changelog
@@ -170,7 +171,24 @@ int main(int argc, char* argv[]){
             return 1;
         }
         printOk("Semantic analysis passed with " + std::to_string(analyzer.warnings.size()) + " warning(s)");
+        // ── Optimizer Phase ───────────────────────────────────────
+        printPhase("OPTIMIZER");
 
+        Optimizer optimizer(ast);
+        CSTNode* optimizedAst = optimizer.optimize();
+
+        if(verbose){
+            for(const std::string& trace : optimizer.traces){
+                printTrace(trace);
+            }
+            if(!optimizer.traces.empty()) printDivider();
+        }
+
+        if(optimizer.traces.empty()){
+            printOk("No constant folding opportunities found");
+        } else {
+            printOk("Constant folding applied " + std::to_string(optimizer.traces.size()) + " optimization(s)");
+        }
         // ── Symbol Table ──────────────────────────────────────
         if(verbose){
             printPhase("SYMBOL TABLE");
@@ -180,7 +198,7 @@ int main(int argc, char* argv[]){
         // ── Code Generation Phase ─────────────────────────────
         printPhase("CODE GENERATION");
 
-        CodeGenerator codegen(ast);
+        CodeGenerator codegen(optimizedAst);
         if(codegen.generate()){
             printOk("Code generation successful");
             codegen.printImage();
