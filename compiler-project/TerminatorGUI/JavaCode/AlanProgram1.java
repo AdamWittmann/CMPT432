@@ -1,10 +1,13 @@
 public class AlanProgram1 {
     public static void main(String[] args) {
-        int a;
-        a = 0;
-        while ((a != 5)) {
-            System.out.println(a);
-            a = 1 + a;
-        }
+        int x;
+        String s;
+        boolean b;
+        x = 7;
+        s = "hello";
+        b = true;
+        System.out.println(x);
+        System.out.println(s);
+        System.out.println(b);
     }
 }
