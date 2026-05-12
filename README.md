@@ -6,7 +6,7 @@ A complete multi-phase compiler for the Alan language written in C++, targeting 
 
 ## Demo
 
-*Coming soon — recording in progress.*
+https://github.com/AdamWittmann/CMPT432/assets/your-video-id/Cpp-Compiler-demo.mp4
 
 ---
 
