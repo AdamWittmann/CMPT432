@@ -53,11 +53,12 @@
 
   /* Main content wrapper */
   #app {
-      position: relative;
-      z-index: 100;   /* bump this up */
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+    position: relative;
+    z-index: 100;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   /* ── BOOT SCREEN ─────────────────────────────────── */
   #bootScreen {
@@ -189,14 +190,15 @@
   }
 
   .panel {
+    height: 100%;
     border: 1px solid var(--red-dark);
     background: var(--bg-panel);
     backdrop-filter: blur(3px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: pulseGlow 5s ease-in-out infinite;
     min-height: 0;
+    animation: pulseGlow 5s ease-in-out infinite;
   }
 
   .panel-left { border-right: none; }
@@ -495,10 +497,11 @@
         <button class="btn" onclick="loadExample()">[ EXAMPLE ]</button>
       </div>
       <div class="metrics">
-        <span>TOKENS: <span class="metric-val" id="metTokens">--</span></span>
+        <span>PHASE: <span class="metric-val" id="metPhase">IDLE</span></span>
+        <span>LINES: <span class="metric-val" id="metLines">--</span></span>
         <span>ERRORS: <span class="metric-val" id="metErrors">--</span></span>
         <span>WARNINGS: <span class="metric-val" id="metWarnings">--</span></span>
-        <span>OPTS: <span class="metric-val" id="metOpts">--</span></span>
+        <span>STATUS: <span class="metric-val" id="metStatus">--</span></span>
       </div>
     </div>
 
@@ -631,6 +634,63 @@ const bootLines = [
   {text: 'ALL SYSTEMS NOMINAL — COMPILER READY', cls: 'bh', delay: 200},
 ];
 
+async function streamOutput(stdout, stderr){
+    const selectedPhase = document.getElementById('phaseSelect').value;
+    const lines = [];
+    if(stdout) lines.push(...stdout.split('\n'));
+    if(stderr) lines.push(...stderr.split('\n').map(l=>'STDERR: '+l));
+
+    let lineCount=0, errors=0, warnings=0;
+    let progress=0;
+    let currentPhase='';
+
+    for(const raw of lines){
+        if(!raw.trim()) continue;
+
+        // Track which phase we're in
+        if(raw.includes('[ LEXER ]'))           currentPhase='lex';
+        else if(raw.includes('[ PARSER ]'))     currentPhase='parse';
+        else if(raw.includes('[ SEMANTIC'))     currentPhase='sem';
+        else if(raw.includes('[ OPTIMIZER'))    currentPhase='opt';
+        else if(raw.includes('[ SYMBOL'))       currentPhase='sym';
+        else if(raw.includes('[ JAVA'))         currentPhase='java';
+        else if(raw.includes('[ CODE')||raw.includes('[ 6502')) currentPhase='codegen';
+
+        // Filter by selected phase — always show headers and errors
+        if(selectedPhase !== 'all' && currentPhase !== selectedPhase){
+            const isHeader = raw.includes('COMPILING PROGRAM') || raw.startsWith('+') || raw.startsWith('|');
+            const isError  = raw.includes('ERR') || raw.includes('FATAL');
+            if(!isHeader && !isError){ await sleep(2); continue; }
+        }
+
+        await sleep(8);
+        lineCount++;
+        document.getElementById('metLines').textContent = lineCount;
+
+        // Classify line for styling
+        let cls = 'raw';
+        if(raw.includes('[ LEXER ]')||raw.includes('[ PARSER ]')||raw.includes('[ SEMANTIC')||
+           raw.includes('[ OPTIMIZER')||raw.includes('[ CODE')||raw.includes('[ SYMBOL')||raw.includes('[ JAVA')){
+            cls='phase'; progress=Math.min(progress+12,95);
+            document.getElementById('progress').style.width=progress+'%';
+            document.getElementById('metPhase').textContent=raw.replace(/[\[\]]/g,'').trim().split(' ')[0];
+        }
+        else if(raw.includes('  OK ')||raw.includes('OK  '))  cls='ok';
+        else if(raw.includes('  ERR')||raw.includes('STDERR:')||raw.startsWith('  ✗')){ cls='err'; errors++; document.getElementById('metErrors').textContent=errors; }
+        else if(raw.includes('  /!\\')||raw.includes('WARNING')||raw.includes('Warning')){ cls='warn'; warnings++; document.getElementById('metWarnings').textContent=warnings; }
+        else if(raw.includes('  -->')||raw.includes('DEBUG')||raw.startsWith('  →')) cls='trace';
+        else if(raw.includes('|')&&/^[0-9A-F]{2} \|/.test(raw.trim())) cls='hex';
+        else if(raw.includes('System.out')||raw.includes('public class')||raw.includes('public static')) cls='java';
+        else if(raw.startsWith('+')||raw.startsWith('|')) cls='header';
+        else cls='raw';
+
+        appendLine(raw, cls);
+    }
+
+    document.getElementById('progress').style.width='100%';
+    document.getElementById('metStatus').textContent=errors>0?'FAILED':'COMPLETE';
+}
+
 async function runBoot() {
   const log = document.getElementById('bootLog');
   const bar = document.getElementById('bootBarFill');
@@ -721,11 +781,12 @@ function clearOutput() {
 }
 
 function resetMetrics() {
-  ['metTokens','metErrors','metWarnings','metOpts','metBytes','metVars','metHeap'].forEach(id => {
-    document.getElementById(id).textContent = '--';
-  });
-  document.getElementById('metPhase').textContent = 'IDLE';
-  document.getElementById('progress').style.width = '0%';
+    const ids = ['metErrors','metWarnings','metPhase','metLines','metStatus'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.textContent = id === 'metPhase' ? 'IDLE' : '--';
+    });
+    document.getElementById('progress').style.width = '0%';
 }
 
 async function appendLine(text, cls) {
@@ -760,398 +821,80 @@ function setPhase(name, pct) {
   document.getElementById('progress').style.width = pct + '%';
 }
 
-async function runCompiler() {
-  if (isRunning) return;
-  isRunning = true;
-  const source = document.getElementById('sourceInput').value.trim();
-  if (!source) { await appendLine('ERR: NO SOURCE INPUT', 'err'); isRunning = false; return; }
-  clearOutput();
-  await sleep(80);
-  try { await compilePipeline(source); }
-  catch(e) { await appendLine('FATAL: ' + e.message, 'err'); }
-  isRunning = false;
-}
+async function runCompiler(){
+    if(isRunning)return;
+    isRunning=true;
+    const source=document.getElementById('sourceInput').value.trim();
+   
 
-async function compilePipeline(source) {
-  const programs = source.split('$').map(s => s.trim()).filter(s => s.length > 0);
-
-  for (let pn = 0; pn < programs.length; pn++) {
-    const src = programs[pn] + '\n$';
-    await appendLine('', 'dim');
-    await appendLine(`+${'='.repeat(50)}+`, 'header');
-    await appendLine(`|  COMPILING PROGRAM ${pn+1} OF ${programs.length}${' '.repeat(30 - String(pn+1).length - String(programs.length).length)}|`, 'header');
-    await appendLine(`+${'='.repeat(50)}+`, 'header');
-
-    // LEXER
-    await sleep(100); setPhase('LEXER', 15);
-    await appendLine('[ LEXER ]', 'phase');
-    const lr = lex(src);
-    document.getElementById('metTokens').textContent = lr.tokens.length;
-    document.getElementById('metErrors').textContent = lr.errors.length;
-    document.getElementById('metWarnings').textContent = lr.warnings.length;
-
-    for (const t of lr.tokens) {
-      await appendLine(`  DEBUG ${t.type} [ ${t.value} ] at (${t.line},${t.col})`, 'trace');
-      await sleep(6);
-    }
-    for (const w of lr.warnings) await appendLine('  /!\\ ' + w, 'warn');
-    for (const e of lr.errors) await appendLine('  ERR ' + e, 'err');
-    if (lr.errors.length) { await appendLine('  ERR LEXER FAILED', 'err'); continue; }
-    await appendLine(`  OK  LEXED ${lr.tokens.length} TOKENS — ${lr.warnings.length} WARNING(S)`, 'ok');
-
-    // PARSER
-    await sleep(100); setPhase('PARSER', 35);
-    await appendLine('[ PARSER ]', 'phase');
-    const pr = parse(lr.tokens);
-    for (const e of pr.errors) await appendLine('  ERR ' + e, 'err');
-    if (pr.errors.length) { await appendLine('  ERR PARSE FAILED', 'err'); continue; }
-    await appendLine(`  OK  PARSE SUCCESSFUL — ${pr.nodeCount} CST NODES`, 'ok');
-
-    // SEMANTIC ANALYSIS
-    await sleep(100); setPhase('SEMANTIC', 55);
-    await appendLine('[ SEMANTIC ANALYSIS ]', 'phase');
-    const sr = semanticAnalyze(pr.ast);
-    for (const t of sr.traces) { await appendLine('  --> ' + t, 'trace'); await sleep(12); }
-    for (const w of sr.warnings) await appendLine('  /!\\ ' + w, 'warn');
-    for (const e of sr.errors) await appendLine('  ERR ' + e, 'err');
-    if (sr.errors.length) {
-      document.getElementById('metErrors').textContent = sr.errors.length;
-      await appendLine('  ERR SEMANTIC ANALYSIS FAILED', 'err'); continue;
-    }
-    document.getElementById('metWarnings').textContent = sr.warnings.length;
-    await appendLine(`  OK  SEMANTIC PASSED — ${sr.warnings.length} WARNING(S)`, 'ok');
-
-    // SYMBOL TABLE
-    await appendLine('[ SYMBOL TABLE ]', 'phase');
-    await appendLine(`  ${'NAME'.padEnd(10)}${'TYPE'.padEnd(12)}${'SCOPE'.padEnd(8)}LINE`, 'trace');
-    await appendLine('  ' + '─'.repeat(36), 'trace');
-    for (const s of sr.symbols) {
-      await appendLine(`  ${s.name.padEnd(10)}${s.type.padEnd(12)}${String(s.scope).padEnd(8)}${s.line}`, 'trace');
-      await sleep(18);
-    }
-
-    // OPTIMIZER
-    await sleep(100); setPhase('OPTIMIZER', 70);
-    await appendLine('[ OPTIMIZER ]', 'phase');
-    const or_ = optimize(sr.ast);
-    document.getElementById('metOpts').textContent = or_.folds;
-    for (const t of or_.traces) { await appendLine('  --> ' + t, 'trace'); await sleep(10); }
-    await appendLine(or_.folds ? `  OK  ${or_.folds} CONSTANT FOLD(S) APPLIED` : '  OK  NO FOLDING OPPORTUNITIES', 'ok');
-
-    // JAVA GENERATION
-    await sleep(100); setPhase('JAVA GEN', 82);
-    await appendLine('[ JAVA SOURCE GENERATION ]', 'phase');
-    const jr = generateJava(or_.ast, pn+1);
-    await appendLine(`  OK  GENERATED AlanProgram${pn+1}.java`, 'ok');
-    await appendLine('  ──────────────────────────────────────', 'trace');
-    for (const l of jr.lines) { await appendLine('  ' + l, 'java'); await sleep(10); }
-    await appendLine('  ──────────────────────────────────────', 'trace');
-
-    // CODE GENERATION
-    await sleep(100); setPhase('CODEGEN', 95);
-    await appendLine('[ 6502a CODE GENERATION ]', 'phase');
-    const cr = generateCode(or_.ast);
-    document.getElementById('metBytes').textContent = cr.codeBytes;
-    document.getElementById('metVars').textContent = cr.varCount;
-    document.getElementById('metHeap').textContent = (255 - cr.heapPtr) + 'B';
-    await appendLine(`  OK  ${cr.codeBytes} CODE BYTES / ${cr.varCount} STATIC VARS`, 'ok');
-    await appendLine('', 'dim');
-
-    for (let row = 0; row < 32; row++) {
-      const addr = (row*8).toString(16).toUpperCase().padStart(2,'0');
-      let bytes = '';
-      for (let col = 0; col < 8; col++) {
-        bytes += cr.image[row*8+col].toString(16).toUpperCase().padStart(2,'0') + ' ';
-      }
-      await appendLine(`${addr} | ${bytes}`, 'hex');
-      await sleep(5);
-    }
-
-    setPhase('COMPLETE', 100);
-    await appendLine('', 'dim');
-    await appendLine(`  OK  PROGRAM ${pn+1} COMPLETE — READY FOR SvegOS`, 'ok');
+    if(!source){ appendLine('ERR: NO SOURCE INPUT','err'); isRunning=false; return; }
+    clearOutput();
+    appendLine('// SENDING TO C++ COMPILER...','dim');
+    await sleep(100);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch('http://localhost:5000/compile', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({source}),
+          signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if(!response.ok) throw new Error('Server error: '+response.status);
+      const data = await response.json();
+      if(data.error){ appendLine('ERR: '+data.error,'err'); isRunning=false; return; }
+      await streamOutput(data.stdout, data.returncode!==0?data.stderr:'');
+  } catch(e) {
+      clearTimeout(timeout);
+      appendLine('ERR: '+e.message,'err');
+      appendLine('// Start the server: python server.py','dim');
   }
+  isRunning=false;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  ALAN COMPILER IMPLEMENTATION (JS)
-// ─────────────────────────────────────────────────────────────
-
-function lex(source) {
-  const tokens=[], errors=[], warnings=[];
-  let pos=0, line=1, col=1;
-  const adv=()=>{if(source[pos]==='\n'){line++;col=1;}else col++;pos++;};
-  const cur=()=>pos<source.length?source[pos]:'\0';
-  const pk=()=>pos+1<source.length?source[pos+1]:'\0';
-  const kws={boolean:'BOOLEAN',string:'STRING',print:'PRINT',while:'WHILE',false:'BOOL',true:'BOOL',int:'INT',if:'IF'};
-  const kwList=Object.keys(kws).sort((a,b)=>b.length-a.length);
-
-  while(pos<source.length){
-    while(pos<source.length&&' \n\t\r'.includes(cur()))adv();
-    if(pos>=source.length)break;
-    const tl=line,tc=col,c=cur();
-    if(c==='{'){tokens.push({type:'LEFT_BRACE',value:'{',line:tl,col:tc});adv();}
-    else if(c==='}'){tokens.push({type:'RIGHT_BRACE',value:'}',line:tl,col:tc});adv();}
-    else if(c==='('){tokens.push({type:'LEFT_PAREN',value:'(',line:tl,col:tc});adv();}
-    else if(c===')'){tokens.push({type:'RIGHT_PAREN',value:')',line:tl,col:tc});adv();}
-    else if(c==='+'){tokens.push({type:'PLUS',value:'+',line:tl,col:tc});adv();}
-    else if(c==='$'){tokens.push({type:'EOP',value:'$',line:tl,col:tc});adv();}
-    else if(c==='='){if(pk()==='='){tokens.push({type:'DOUBLE_EQUALS',value:'==',line:tl,col:tc});adv();adv();}else{tokens.push({type:'ASSIGN',value:'=',line:tl,col:tc});adv();}}
-    else if(c==='!'){if(pk()==='='){tokens.push({type:'NOT_EQUALS',value:'!=',line:tl,col:tc});adv();adv();}else{errors.push(`Unexpected '!' at (${tl},${tc})`);adv();}}
-    else if(c==='"'){
-      tokens.push({type:'QUOTE',value:'"',line:tl,col:tc});adv();
-      while(pos<source.length&&cur()!=='"'&&cur()!=='\n'){tokens.push({type:'CHAR',value:cur(),line,col});adv();}
-      if(cur()==='"'){tokens.push({type:'QUOTE',value:'"',line,col});adv();}
-      else{tokens.push({type:'QUOTE',value:'"',line,col});warnings.push(`Unterminated string at (${tl},${tc}) — auto-fixed`);}
-    }
-    else if(c==='/'&&pk()==='*'){
-      adv();adv();
-      while(pos<source.length){if(cur()==='*'&&pk()==='/'){adv();adv();break;}adv();}
-    }
-    else if(c>='0'&&c<='9'){
-      tokens.push({type:'DIGIT',value:c,line:tl,col:tc});adv();
-      if(pos<source.length&&cur()>='0'&&cur()<='9')errors.push(`Multi-digit integer at (${tl},${tc})`);
-    }
-    else if(c>='a'&&c<='z'){
-      let matched=false;
-      for(const kw of kwList){
-        if(source.substr(pos,kw.length)===kw&&(pos+kw.length>=source.length||!/[a-z]/.test(source[pos+kw.length]))){
-          tokens.push({type:kws[kw],value:kw,line:tl,col:tc});
-          for(let i=0;i<kw.length;i++)adv();
-          matched=true;break;
+async function streamOutput(stdout, stderr){
+    const selectedPhase=document.getElementById('phaseSelect').value;
+    const lines=[];
+    if(stdout)lines.push(...stdout.split('\n'));
+    if(stderr)lines.push(...stderr.split('\n').map(l=>'STDERR: '+l));
+    let lineCount=0,errors=0,warnings=0,progress=0,currentPhase='';
+    for(const raw of lines){
+        if(!raw.trim())continue;
+        if(raw.includes('[ LEXER ]'))          currentPhase='lex';
+        else if(raw.includes('[ PARSER ]'))    currentPhase='parse';
+        else if(raw.includes('[ SEMANTIC'))    currentPhase='sem';
+        else if(raw.includes('[ OPTIMIZER'))   currentPhase='opt';
+        else if(raw.includes('[ SYMBOL'))      currentPhase='sym';
+        else if(raw.includes('[ JAVA'))        currentPhase='java';
+        else if(raw.includes('[ CODE')||raw.includes('[ 6502')) currentPhase='codegen';
+        if(selectedPhase!=='all'&&currentPhase!==selectedPhase){
+            const isHeader=raw.includes('COMPILING PROGRAM')||raw.startsWith('+')||raw.startsWith('|');
+            const isError=raw.includes('ERR')||raw.includes('FATAL');
+            if(!isHeader&&!isError){await sleep(2);continue;}
         }
-      }
-      if(!matched){tokens.push({type:'ID',value:c,line:tl,col:tc});adv();}
+        await sleep(8);
+        lineCount++;
+        document.getElementById('metLines').textContent=lineCount;
+        let cls='raw';
+        if(raw.includes('[ LEXER ]')||raw.includes('[ PARSER ]')||raw.includes('[ SEMANTIC')||
+           raw.includes('[ OPTIMIZER')||raw.includes('[ CODE')||raw.includes('[ SYMBOL')||raw.includes('[ JAVA')){
+            cls='phase';progress=Math.min(progress+12,95);
+            document.getElementById('progress').style.width=progress+'%';
+            document.getElementById('metPhase').textContent=raw.replace(/[\[\]]/g,'').trim().split(' ')[0];
+        }
+        else if(raw.includes('OK '))  cls='ok';
+        else if(raw.includes('ERR')||raw.includes('STDERR:')){cls='err';errors++;document.getElementById('metErrors').textContent=errors;}
+        else if(raw.includes('/!\\')||raw.includes('WARNING')||raw.includes('Warning')){cls='warn';warnings++;document.getElementById('metWarnings').textContent=warnings;}
+        else if(raw.includes('-->')||raw.includes('DEBUG')) cls='trace';
+        else if(/^[0-9A-F]{2} \|/.test(raw.trim())) cls='hex';
+        else if(raw.includes('System.out')||raw.includes('public class')) cls='java';
+        else if(raw.startsWith('+')||raw.startsWith('|')) cls='header';
+        appendLine(raw,cls);
     }
-    else{errors.push(`Unrecognized '${c}' at (${tl},${tc})`);adv();}
-  }
-  if(!tokens.length||tokens[tokens.length-1].type!=='EOP'){
-    tokens.push({type:'EOP',value:'$',line,col});
-    warnings.push('Missing EOP — auto-inserted');
-  }
-  return{tokens,errors,warnings};
+    document.getElementById('progress').style.width='100%';
+    document.getElementById('metStatus').textContent=errors>0?'FAILED':'COMPLETE';
 }
-
-function parse(tokens){
-  let pos=0;const errors=[];let nodeCount=0;
-  const cur=()=>tokens[pos]||{type:'EOF',value:''};
-  const check=t=>cur().type===t;
-  const adv=()=>{const t=tokens[pos];pos++;nodeCount++;return t;};
-  const match=t=>{if(check(t))return adv();errors.push(`Expected ${t} got '${cur().value}'`);return null;};
-
-  function prog(){return{type:'Program',children:[block(),match('EOP')]};}
-  function block(){match('LEFT_BRACE');const s=stmtList();match('RIGHT_BRACE');return{type:'Block',children:s};}
-  function stmtList(){const s=[];while(!check('RIGHT_BRACE')&&!check('EOP')&&pos<tokens.length)s.push(stmt());return s;}
-  function stmt(){
-    if(check('PRINT'))return prnt();
-    if(check('ID'))return assign();
-    if(check('INT')||check('STRING')||check('BOOLEAN'))return vdecl();
-    if(check('WHILE'))return whl();
-    if(check('IF'))return iff();
-    if(check('LEFT_BRACE'))return block();
-    errors.push(`Unexpected '${cur().value}'`);adv();return{type:'Error'};
-  }
-  function prnt(){match('PRINT');match('LEFT_PAREN');const e=expr();match('RIGHT_PAREN');return{type:'PrintStatement',expr:e};}
-  function assign(){const id=adv().value;match('ASSIGN');const e=expr();return{type:'AssignmentStatement',id,expr:e};}
-  function vdecl(){const tt=adv();const it=adv();return{type:'VarDecl',varType:tt.value,id:it.value,line:it.line||0,col:it.col||0};}
-  function whl(){match('WHILE');const c=bexpr();const b=block();return{type:'WhileStatement',cond:c,block:b};}
-  function iff(){match('IF');const c=bexpr();const b=block();return{type:'IfStatement',cond:c,block:b};}
-  function expr(){
-    if(check('DIGIT'))return iexpr();
-    if(check('QUOTE'))return sexpr();
-    if(check('LEFT_PAREN')||check('BOOL'))return bexpr();
-    if(check('ID')){const v=adv().value;return{type:'Id',value:v};}
-    errors.push(`Expected expr got '${cur().value}'`);return{type:'Error'};
-  }
-  function iexpr(){const d=adv().value;if(check('PLUS')){adv();const r=expr();return{type:'IntExpr',left:d,right:r};}return{type:'IntExpr',left:d,right:null};}
-  function sexpr(){match('QUOTE');let v='';while(!check('QUOTE')&&!check('EOP'))v+=adv().value;match('QUOTE');return{type:'StringExpr',value:v};}
-  function bexpr(){
-    if(check('BOOL')){const v=adv().value;return{type:'BoolExpr',boolval:v};}
-    match('LEFT_PAREN');const l=expr();
-    let op='';
-    if(check('DOUBLE_EQUALS')){adv();op='==';}else if(check('NOT_EQUALS')){adv();op='!=';}
-    const r=expr();match('RIGHT_PAREN');
-    return{type:'BoolExpr',left:l,op,right:r};
-  }
-  const ast=prog();
-  return{ast,errors,nodeCount};
-}
-
-function semanticAnalyze(ast){
-  const errors=[],warnings=[],traces=[],symbols=[];
-  const scopes=[{}];let scopeNum=0;
-  const enter=()=>{scopeNum++;scopes.push({});traces.push(`Entering scope ${scopeNum}`);};
-  const exit=()=>{
-    const sc=scopes[scopes.length-1];
-    for(const[n,s]of Object.entries(sc)){
-      if(!s.used)warnings.push(`'${n}' declared but never used`);
-      if(!s.init)warnings.push(`'${n}' declared but never initialized`);
-    }
-    traces.push(`Exiting scope ${scopeNum}`);scopes.pop();scopeNum--;
-  };
-  const decl=(n,t,ln,cl)=>{
-    if(scopes[scopes.length-1][n]){errors.push(`Redeclaration of '${n}' at (${ln},${cl})`);return;}
-    scopes[scopes.length-1][n]={name:n,type:t,scope:scopeNum,line:ln,col:cl,init:false,used:false};
-    symbols.push({name:n,type:t,scope:scopeNum,line:ln,col:cl});
-    traces.push(`Declared '${n}' (${t}) at (${ln},${cl})`);
-  };
-  const lookup=n=>{for(let i=scopes.length-1;i>=0;i--)if(scopes[i][n])return scopes[i][n];return null;};
-  const rtype=nd=>{
-    if(!nd)return'unknown';
-    if(nd.type==='IntExpr')return'int';
-    if(nd.type==='StringExpr')return'string';
-    if(nd.type==='BoolExpr')return'boolean';
-    if(nd.type==='Id'){const s=lookup(nd.value);return s?s.type:'unknown';}
-    return'unknown';
-  };
-  function vblock(nd){enter();for(const s of(nd.children||[]))vstmt(s);exit();}
-  function vstmt(nd){
-    if(!nd)return;
-    if(nd.type==='VarDecl')decl(nd.id,nd.varType,nd.line,nd.col);
-    else if(nd.type==='AssignmentStatement'){
-      const s=lookup(nd.id);
-      if(!s){errors.push(`Undeclared '${nd.id}'`);return;}
-      const et=rtype(nd.expr);
-      if(s.type!==et&&et!=='unknown'){errors.push(`Type mismatch '${nd.id}': expected ${s.type} got ${et}`);traces.push(`✗ Type: '${nd.id}' expects ${s.type} got ${et}`);}
-      else traces.push(`✓ Type: '${nd.id}' = ${et}`);
-      s.init=true;
-    }
-    else if(nd.type==='PrintStatement'){
-      if(nd.expr&&nd.expr.type==='Id'){
-        const s=lookup(nd.expr.value);
-        if(!s)errors.push(`Undeclared '${nd.expr.value}'`);
-        else{if(!s.init)warnings.push(`'${nd.expr.value}' used before init`);s.used=true;}
-      }
-    }
-    else if(nd.type==='WhileStatement')vblock(nd.block);
-    else if(nd.type==='IfStatement')vblock(nd.block);
-    else if(nd.type==='Block')vblock(nd);
-  }
-  if(ast&&ast.children&&ast.children[0])vblock(ast.children[0]);
-  return{errors,warnings,traces,symbols,ast};
-}
-
-function optimize(ast){
-  let folds=0;const traces=[];
-  const isC=nd=>{if(!nd)return true;if(nd.type==='Id')return false;if(nd.type==='IntExpr')return isC(nd.right);return true;};
-  const evalC=nd=>{if(!nd)return 0;if(nd.type==='IntExpr'){const l=parseInt(nd.left);return nd.right?l+evalC(nd.right):l;}return 0;};
-  function fold(nd){
-    if(!nd)return nd;
-    if(nd.type==='IntExpr'&&nd.right){nd.right=fold(nd.right);if(isC(nd)){const v=evalC(nd);traces.push(`Constant fold: → ${v}`);folds++;return{type:'IntExpr',left:String(v),right:null};}}
-    return nd;
-  }
-  function wb(nd){if(!nd)return;for(let i=0;i<(nd.children||[]).length;i++)ws(nd.children[i]);}
-  function ws(nd){
-    if(!nd)return;
-    if(nd.type==='AssignmentStatement')nd.expr=fold(nd.expr);
-    else if(nd.type==='PrintStatement')nd.expr=fold(nd.expr);
-    else if(nd.type==='Block')wb(nd);
-    else if(nd.type==='WhileStatement')wb(nd.block);
-    else if(nd.type==='IfStatement')wb(nd.block);
-  }
-  if(ast&&ast.children&&ast.children[0])wb(ast.children[0]);
-  return{ast,folds,traces};
-}
-
-function generateJava(ast,num){
-  const lines=[];let indent=0;
-  const emit=l=>lines.push('    '.repeat(indent)+l);
-  const tm=t=>t==='string'?'String':t;
-  const es=nd=>{
-    if(!nd)return'';
-    if(nd.type==='IntExpr'){if(nd.right)return nd.left+' + '+es(nd.right);return nd.left;}
-    if(nd.type==='StringExpr')return`"${nd.value}"`;
-    if(nd.type==='BoolExpr'){if(nd.boolval!==undefined)return nd.boolval;return`(${es(nd.left)} ${nd.op} ${es(nd.right)})`;}
-    if(nd.type==='Id')return nd.value;
-    return'';
-  };
-  function gb(nd){for(const s of(nd.children||[]))gs(s);}
-  function gs(nd){
-    if(!nd)return;
-    if(nd.type==='VarDecl')emit(`${tm(nd.varType)} ${nd.id};`);
-    else if(nd.type==='AssignmentStatement')emit(`${nd.id} = ${es(nd.expr)};`);
-    else if(nd.type==='PrintStatement')emit(`System.out.println(${es(nd.expr)});`);
-    else if(nd.type==='WhileStatement'){emit(`while (${es(nd.cond)}) {`);indent++;gb(nd.block);indent--;emit('}');}
-    else if(nd.type==='IfStatement'){emit(`if (${es(nd.cond)}) {`);indent++;gb(nd.block);indent--;emit('}');}
-    else if(nd.type==='Block')gb(nd);
-  }
-  emit(`public class AlanProgram${num} {`);indent++;
-  emit('public static void main(String[] args) {');indent++;
-  if(ast&&ast.children&&ast.children[0])gb(ast.children[0]);
-  indent--;emit('}');indent--;emit('}');
-  return{lines};
-}
-
-function generateCode(ast){
-  const image=new Uint8Array(256);
-  let cp=0,hp=0xFF;
-  const tvars=[],srefs=[],jrefs=[];let tc=0;
-  const emit=b=>{if(cp<hp)image[cp++]=b;};
-  const nt=(n,t)=>{const tv={name:n,type:t,tn:`T${tc++}`,addr:-1};tvars.push(tv);return tv.tn;};
-  const lt=n=>{for(let i=tvars.length-1;i>=0;i--)if(tvars[i].name===n)return tvars[i].tn;return'';};
-  const eref=tn=>{srefs.push({idx:cp,tn});emit(0x00);emit(0x00);};
-
-  function exA(nd){
-    if(!nd)return;
-    if(nd.type==='IntExpr'){emit(0xA9);emit(parseInt(nd.left));if(nd.right){const t=nt('','int');emit(0x8D);eref(t);exA(nd.right);emit(0x6D);eref(t);}}
-    else if(nd.type==='StringExpr'){
-      const len=nd.value.length;hp-=len+1;
-      for(let i=0;i<len;i++)image[hp+i]=nd.value.charCodeAt(i);
-      image[hp+len]=0;emit(0xA9);emit(hp);
-    }
-    else if(nd.type==='BoolExpr'){
-      if(nd.boolval!==undefined){emit(0xA9);emit(nd.boolval==='true'?1:0);}
-      else{
-        exA(nd.left);const t=nt('','int');emit(0x8D);eref(t);
-        exA(nd.right);const t2=nt('','int');emit(0x8D);eref(t2);
-        emit(0xAE);eref(t2);emit(0xEC);eref(t);
-        const fj=jrefs.length;jrefs.push({idx:cp+1,target:-1});
-        emit(nd.op==='=='?0xD0:0xF0);emit(0x00);
-        emit(0xA9);emit(0x01);
-        const dj=jrefs.length;jrefs.push({idx:cp+1,target:-1});
-        emit(0xD0);emit(0x00);
-        jrefs[fj].target=cp;emit(0xA9);emit(0x00);jrefs[dj].target=cp;
-      }
-    }
-    else if(nd.type==='Id'){const tn=lt(nd.value);if(tn){emit(0xAD);eref(tn);}}
-  }
-  function gb(nd){for(const s of(nd.children||[]))gs(s);}
-  function gs(nd){
-    if(!nd)return;
-    if(nd.type==='VarDecl')nt(nd.id,nd.varType);
-    else if(nd.type==='AssignmentStatement'){exA(nd.expr);const tn=lt(nd.id);if(tn){emit(0x8D);eref(tn);}}
-    else if(nd.type==='PrintStatement'){
-      exA(nd.expr);
-      let sc=0x01;
-      if(nd.expr&&nd.expr.type==='StringExpr')sc=0x02;
-      if(nd.expr&&nd.expr.type==='BoolExpr')sc=0x03;
-      if(nd.expr&&nd.expr.type==='Id'){const tn=lt(nd.expr.value);const tv=tvars.find(t=>t.tn===tn);if(tv&&tv.type==='string')sc=0x02;if(tv&&tv.type==='boolean')sc=0x03;}
-      emit(0xA8);emit(0xA2);emit(sc);emit(0xFF);
-    }
-    else if(nd.type==='WhileStatement'){
-      const ls=cp;exA(nd.cond);
-      const t=nt('','boolean');emit(0x8D);eref(t);emit(0xAE);eref(t);emit(0xE0);emit(0x01);
-      const ej=jrefs.length;jrefs.push({idx:cp+1,target:-1});emit(0xD0);emit(0x00);
-      gb(nd.block);
-      emit(0xA2);emit(0x01);emit(0xE0);emit(0x00);
-      jrefs.push({idx:cp+1,target:ls});emit(0xD0);emit(0x00);
-      jrefs[ej].target=cp;
-    }
-    else if(nd.type==='IfStatement'){
-      exA(nd.cond);const t=nt('','boolean');emit(0x8D);eref(t);emit(0xAE);eref(t);emit(0xE0);emit(0x01);
-      const ej=jrefs.length;jrefs.push({idx:cp+1,target:-1});emit(0xD0);emit(0x00);
-      gb(nd.block);jrefs[ej].target=cp;
-    }
-    else if(nd.type==='Block')gb(nd);
-  }
-  if(ast&&ast.children&&ast.children[0])gb(ast.children[0]);
-  emit(0x00);
-  const sb=cp;tvars.forEach((tv,i)=>{tv.addr=sb+i;});
-  for(const r of srefs){const tv=tvars.find(t=>t.tn===r.tn);if(tv){image[r.idx]=tv.addr&0xFF;image[r.idx+1]=0x00;}}
-  for(const r of jrefs){if(r.target>=0)image[r.idx]=(r.target-(r.idx+1))&0xFF;}
-  return{image:Array.from(image),codeBytes:cp,varCount:tvars.length,heapPtr:hp};
-}
-
 // Clock
 setInterval(()=>{
   document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8);

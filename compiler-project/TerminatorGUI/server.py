@@ -31,12 +31,14 @@ def index():
 
 @app.route('/compile', methods=['POST'])
 def compile_source():
+    global COMPILER_PATH
     data = request.get_json()
+    print(f'Received request: {data is not None}')
     if not data or 'source' not in data:
         return jsonify({'error': 'No source provided'}), 400
 
     source = data['source']
-
+    # rest of function...
     # Write source to a temp file
     with tempfile.NamedTemporaryFile(
         mode='w', suffix='.txt', delete=False, dir='/tmp'
@@ -46,12 +48,14 @@ def compile_source():
 
     try:
         # Run the actual C++ compiler
+        COMPILER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'compiler')
+        print(f'  Compiler path: {COMPILER_PATH}')
+        print(f'  Compiler exists: {os.path.exists(COMPILER_PATH)}')
         result = subprocess.run(
-            ['../compiler', tmpfile],
+            [COMPILER_PATH, tmpfile],
             capture_output=True,
             text=True,
-            timeout=15,
-            cwd=os.path.dirname(os.path.abspath(__file__))
+            timeout=15
         )
         return jsonify({
             'stdout': result.stdout,
