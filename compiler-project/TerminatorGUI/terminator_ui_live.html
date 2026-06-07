@@ -21,7 +21,7 @@
   body {
     background: #000;
     color: var(--red);
-    font-family: 'Share Tech Mono', monospace;
+    font-family: 'VT323', monospace;
     min-height: 100vh;
     overflow: hidden;
     cursor: crosshair;
@@ -74,34 +74,34 @@
   }
 
   #bootLogo {
-    font-size: 3.5rem;
+    font-size: 5.6rem;
     color: var(--red);
     text-shadow: 0 0 30px var(--red-dim), 0 0 60px var(--red-dark);
     text-align: center;
     letter-spacing: 0.12em;
     line-height: 1.1;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
   }
 
   #bootLog {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.78rem;
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
     color: var(--red-dim);
-    width: 560px;
-    max-width: 90vw;
-    line-height: 1.9;
-    letter-spacing: 0.06em;
+    width: 760px;
+    max-width: 92vw;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
   }
 
   #bootLog .bl { color: var(--red-dark); }
   #bootLog .bh { color: var(--red); }
 
   #bootBar {
-    width: 560px;
-    max-width: 90vw;
-    height: 3px;
+    width: 760px;
+    max-width: 92vw;
+    height: 4px;
     background: var(--red-dark);
-    margin-top: 1.5rem;
+    margin-top: 1.8rem;
     position: relative;
     overflow: hidden;
   }
@@ -115,14 +115,14 @@
   }
 
   #bootPercent {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.7rem;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
     color: var(--red-dark);
-    margin-top: 0.4rem;
+    margin-top: 0.5rem;
     letter-spacing: 0.1em;
     text-align: right;
-    width: 560px;
-    max-width: 90vw;
+    width: 760px;
+    max-width: 92vw;
   }
 
   /* ── CRT FLICKER ─────────────────────────────────── */
@@ -146,7 +146,7 @@
 
   /* ── HEADER ──────────────────────────────────────── */
   .header {
-    padding: 1rem 1.5rem 0.75rem;
+    padding: 1.3rem 2rem 1rem;
     border-bottom: 1px solid var(--red-dark);
     display: flex;
     justify-content: space-between;
@@ -157,7 +157,7 @@
 
   .header-title {
     font-family: 'VT323', monospace;
-    font-size: 2.4rem;
+    font-size: 4rem;
     color: var(--red);
     text-shadow: 0 0 20px var(--red-dim), 0 0 40px var(--red-dark);
     letter-spacing: 0.08em;
@@ -165,18 +165,18 @@
   }
 
   .header-sub {
-    font-size: 0.65rem;
+    font-size: 1.15rem;
     color: var(--red-dark);
-    margin-top: 0.2rem;
-    letter-spacing: 0.18em;
+    margin-top: 0.3rem;
+    letter-spacing: 0.12em;
   }
 
   .header-status {
     text-align: right;
-    font-size: 0.65rem;
+    font-size: 1.15rem;
     color: var(--red-dark);
-    line-height: 1.9;
-    letter-spacing: 0.08em;
+    line-height: 1.5;
+    letter-spacing: 0.06em;
   }
 
   .status-live { color: var(--red); animation: blink 1s infinite; }
@@ -186,7 +186,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     flex: 1;
-    height: calc(100vh - 88px);
+    min-height: 0;
   }
 
   .panel {
@@ -204,7 +204,7 @@
   .panel-left { border-right: none; }
 
   .panel-header {
-    padding: 0.5rem 1rem;
+    padding: 0.7rem 1.3rem;
     border-bottom: 1px solid var(--red-dark);
     background: rgba(80,0,0,0.2);
     display: flex;
@@ -214,15 +214,15 @@
 
   .panel-title {
     font-family: 'VT323', monospace;
-    font-size: 1rem;
+    font-size: 1.85rem;
     color: var(--red);
     letter-spacing: 0.15em;
   }
 
-  .panel-badge { font-size: 0.58rem; color: var(--red-dark); letter-spacing: 0.1em; }
+  .panel-badge { font-size: 1.05rem; color: var(--red-dark); letter-spacing: 0.08em; }
 
   /* ── EDITOR ──────────────────────────────────────── */
-  .editor-area { flex: 1; padding: 0.75rem; position: relative; }
+  .editor-area { flex: 1; padding: 1rem; position: relative; }
 
   textarea {
     width: 100%; height: 100%;
@@ -230,22 +230,22 @@
     border: none; outline: none;
     color: var(--red);
     font-family: 'Share Tech Mono', monospace;
-    font-size: 0.85rem;
+    font-size: 1.2rem;
     line-height: 1.7;
     resize: none;
     caret-color: var(--red);
     letter-spacing: 0.04em;
   }
   textarea::placeholder { color: var(--red-dark); opacity: 0.5; }
-  textarea::-webkit-scrollbar { width: 3px; }
+  textarea::-webkit-scrollbar { width: 4px; }
   textarea::-webkit-scrollbar-thumb { background: var(--red-dark); }
 
   /* ── CONTROLS ────────────────────────────────────── */
   .controls {
-    padding: 0.6rem 0.75rem;
+    padding: 0.8rem 1rem;
     border-top: 1px solid var(--red-dark);
     display: flex;
-    gap: 0.5rem;
+    gap: 0.65rem;
     align-items: center;
     background: rgba(40,0,0,0.3);
     flex-wrap: wrap;
@@ -255,11 +255,11 @@
     background: transparent;
     border: 1px solid var(--red-dim);
     color: var(--red);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.68rem;
-    padding: 0.35rem 0.8rem;
+    font-family: 'VT323', monospace;
+    font-size: 1.25rem;
+    padding: 0.3rem 1.1rem;
     cursor: pointer;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     transition: all 0.15s;
     position: relative;
@@ -281,28 +281,29 @@
     background: transparent;
     border: 1px solid var(--red-dark);
     color: var(--red-dim);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.65rem;
-    padding: 0.35rem 0.4rem;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    padding: 0.3rem 0.55rem;
     outline: none;
     cursor: pointer;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
   }
   .phase-select option { background: #0a0000; color: var(--red); }
 
   /* ── OUTPUT ──────────────────────────────────────── */
   .output-area {
     flex: 1;
-    overflow-y: scroll;  /* change auto to scroll */
+    overflow-y: scroll;
     min-height: 0;
-    padding: 0.75rem 1rem;
-    font-size: 0.78rem;
-    line-height: 1.7;
-    letter-spacing: 0.03em;
+    padding: 1rem 1.3rem;
+    font-family: 'VT323', monospace;
+    font-size: 1.3rem;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
     position: relative;
-    z-index: 20;          /* add this */
+    z-index: 20;
   }
-  .output-area::-webkit-scrollbar{width:3px;}
+  .output-area::-webkit-scrollbar{width:4px;}
   .output-area::-webkit-scrollbar-thumb{background:var(--red-dark);}
 
   .output-line {
@@ -319,9 +320,9 @@
   .line-phase {
     color: var(--red);
     font-family: 'VT323', monospace;
-    font-size: 1.05rem;
+    font-size: 1.85rem;
     letter-spacing: 0.2em;
-    margin-top: 0.4rem;
+    margin-top: 0.5rem;
     text-shadow: 0 0 8px var(--red-dim);
   }
   .line-header {
@@ -330,14 +331,19 @@
     margin: 0.4rem 0 0.2rem;
     padding-top: 0.2rem;
   }
-  .line-hex   { color: var(--red-dark); font-size: 0.74rem; }
-  .line-hex span { color: #cc2200; }
-  .line-java  { color: #bb3333; }
+  /* hex dumps, generated Java, and box-drawing must stay monospace for column alignment */
+  .line-hex, .line-java, .line-header {
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.02em;
+  }
+  .line-hex   { color: var(--red-dark); font-size: 1rem; }
+  .line-java  { color: #bb3333; font-size: 1rem; }
+  .line-header { font-size: 1rem; }
   .line-dim   { color: var(--red-dark); }
 
   .cursor-blink {
     display: inline-block;
-    width: 7px; height: 13px;
+    width: 11px; height: 20px;
     background: var(--red);
     animation: blink 0.8s infinite;
     vertical-align: middle;
@@ -346,20 +352,20 @@
 
   /* ── METRICS ─────────────────────────────────────── */
   .metrics {
-    padding: 0.4rem 0.75rem;
+    padding: 0.4rem 1rem;
     border-top: 1px solid var(--red-dark);
     display: flex;
-    gap: 1rem;
-    font-size: 0.6rem;
+    gap: 1.4rem;
+    font-size: 1.1rem;
     color: var(--red-dark);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     background: rgba(30,0,0,0.4);
     flex-wrap: wrap;
   }
   .metric-val { color: var(--red-dim); }
 
   /* ── PROGRESS ────────────────────────────────────── */
-  .progress-bar { height: 2px; background: var(--red-dark); position: relative; overflow: hidden; }
+  .progress-bar { height: 3px; background: var(--red-dark); position: relative; overflow: hidden; }
   .progress-fill {
     height: 100%;
     background: var(--red);
@@ -372,14 +378,14 @@
   .bottom-bar {
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    padding: 0.35rem 1.5rem;
+    padding: 0.3rem 2rem;
     border-top: 1px solid var(--red-dark);
     background: rgba(0,0,0,0.9);
     display: flex;
     justify-content: space-between;
-    font-size: 0.58rem;
+    font-size: 1.05rem;
     color: var(--red-dark);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     z-index: 100;
   }
 
@@ -391,7 +397,7 @@
     transition: all 0.4s ease;
   }
   .reticle-ring {
-    width: 60px; height: 60px;
+    width: 78px; height: 78px;
     border: 1px solid rgba(255,0,0,0.3);
     border-radius: 50%;
     position: absolute;
@@ -415,12 +421,12 @@
   }
   .reticle-label {
     position: absolute;
-    top: calc(50% + 36px);
+    top: calc(50% + 46px);
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.55rem;
+    font-size: 1rem;
     color: rgba(255,0,0,0.4);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     white-space: nowrap;
   }
 </style>
@@ -439,7 +445,7 @@
   <div class="reticle-label">TARGET ACQUIRED</div>
 </div>
 <div class="reticle" id="reticle2">
-  <div class="reticle-ring" style="width:40px;height:40px;border-color:rgba(255,0,0,0.2)"></div>
+  <div class="reticle-ring" style="width:52px;height:52px;border-color:rgba(255,0,0,0.2)"></div>
   <div class="reticle-cross-h"></div>
   <div class="reticle-cross-v"></div>
   <div class="reticle-label">SCANNING...</div>
@@ -550,7 +556,7 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // Hex rain columns
-const COLS = Math.floor(window.innerWidth / 14);
+const COLS = Math.floor(window.innerWidth / 16);
 const drops = Array.from({length: COLS}, () => Math.random() * -100);
 const chars = '0123456789ABCDEF01001011010110100101';
 
@@ -558,15 +564,15 @@ function drawBg() {
   ctx.fillStyle = 'rgba(0,0,0,0.06)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.font = '12px Share Tech Mono, monospace';
+  ctx.font = '14px Share Tech Mono, monospace';
 
   for (let i = 0; i < drops.length; i++) {
     const bright = Math.random() > 0.95;
     ctx.fillStyle = bright ? 'rgba(255,0,0,0.9)' : 'rgba(120,0,0,0.35)';
     const ch = chars[Math.floor(Math.random() * chars.length)];
-    ctx.fillText(ch, i * 14, drops[i] * 14);
+    ctx.fillText(ch, i * 16, drops[i] * 16);
 
-    if (drops[i] * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    if (drops[i] * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
     drops[i] += 0.4 + Math.random() * 0.3;
   }
 
